@@ -30,7 +30,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-import { clearToken, apiRequest, getUser } from "@/lib/api";
+import { clearToken, apiRequest } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 
 const primary = [
@@ -69,7 +69,7 @@ export function AppSidebar() {
   });
   const logoSrc = user?.logo_path || "/assets/images/best-logo.png";
   const companyName = user?.company_name_en || "Best Health";
-  const companyTitle = user?.company_name_en_title || "Diagnostic & Medical Center";
+
 
   const isActive = (url: string) => (url === "/" ? pathname === "/" : pathname.startsWith(url));
 

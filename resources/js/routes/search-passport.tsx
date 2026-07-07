@@ -1,4 +1,4 @@
-import { createFileRoute, useSearch, Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { useState } from "react";
@@ -31,11 +31,11 @@ function SearchPassportPage() {
 
   const logoSrc = settings?.logo_path || "/assets/images/best-logo.png";
   const companyNameEn = settings?.company_name_en || "BEST HEALTH DIAGNOSTIC LTD.";
-  const companyTitleEn = settings?.company_name_en_title || "Diagnostic & Medical Center";
+
   const companyNameBn = settings?.company_name_bn || "বেস্ট হেলথ্ ডায়াগনস্টিক লিমিটেড";
   const companyAddressEn = settings?.company_address_en || "1/A, D.I.T Extention Road, Alauddin Bhaban (3rd Floor), Fakirapool, Motijheel, Dhaka-1000";
   const companyPhoneEn = settings?.company_phone_en || "Phone: 01618888911, 01841775991, 01770044337, email: besthealth.bhdl@gmail.com";
-  const companyAddressBn = settings?.company_address_bn || "মেডিকেল রিপোর্ট এর তথ্যটি সঠিক আছে কিনা জানার জন্য আমাদের ওয়েব সাইটে ভিজিট করুন অথবা QR Code স্ক্যান করুন।";
+
 
   if (isLoading) {
     return (

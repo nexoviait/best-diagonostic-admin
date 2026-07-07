@@ -55,8 +55,7 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
   const [searchId, setSearchId] = useState("");
   const [patient, setPatient] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [rotateLabel, setRotateLabel] = useState(true);
-  const [labelCount, setLabelCount] = useState(1);
+  const labelCount = 1;
   const [activeTab, setActiveTab] = useState("Edit Report");
 
   // 1. Column 1 fields

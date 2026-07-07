@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, Save, ChevronLeft, ChevronRight, Printer, FileText, CreditCard, Loader2, Search, QrCode, ShieldCheck } from "lucide-react";
+import { Save, Printer, FileText, CreditCard, Loader2, Search, QrCode, ShieldCheck } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import JsBarcode from "jsbarcode";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -78,13 +78,11 @@ function numberToWords(num: number): string {
 
 function EntryFormPage() {
   const [activeTab, setActiveTab] = useState("New Entry");
-  const [labelType, setLabelType] = useState<"smart">("smart");
-  const [rotateLabel, setRotateLabel] = useState(true);
   const [activePatient, setActivePatient] = useState<any>(null);
   const [searchPaxId, setSearchPaxId] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [labelCount, setLabelCount] = useState(1);
+  const labelCount = 1;
 
   // Form states
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);

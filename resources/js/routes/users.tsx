@@ -35,7 +35,7 @@ function UsersPage() {
   }, [filterQuery]);
 
   // Load Users
-  const { data: users = [], isLoading, refetch } = useQuery<any[]>({
+  const { data: users = [], isLoading } = useQuery<any[]>({
     queryKey: ["users"],
     queryFn: () => apiRequest("/users"),
   });
