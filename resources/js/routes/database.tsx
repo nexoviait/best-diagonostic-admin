@@ -1,0 +1,626 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { DashboardShell } from "@/components/dashboard-shell";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, Loader2, Pencil, Trash2, FileText, ScanLine } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/api";
+import { DatePicker } from "@/components/ui/date-picker";
+import { toast } from "sonner";
+
+export const Route = createFileRoute("/database")({
+  component: DatabasePage,
+});
+
+function FilterCard({
+  title,
+  children,
+  onSearch,
+}: {
+  title: string;
+  children: React.ReactNode;
+  onSearch: () => void;
+}) {
+  return (
+    <div className="card-surface flex flex-wrap items-end gap-3 p-4">
+      <div className="min-w-[110px] text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {title}
+      </div>
+      {children}
+      <Button onClick={onSearch} className="ml-auto gradient-primary">
+        <Search className="mr-1 h-4 w-4" /> Search
+      </Button>
+    </div>
+  );
+}
+
+function DatabasePage() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  // Search parameters
+  const [searchField, setSearchField] = useState("pax");
+  const [searchValue, setSearchValue] = useState("");
+
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const [agencyId, setAgencyId] = useState("all");
+  const [mrId, setMrId] = useState("all");
+
+  const [filters, setFilters] = useState<Record<string, string>>({});
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 25;
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiRequest(`/patients/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast.success("Patient deleted successfully.");
+      queryClient.invalidateQueries({ queryKey: ["patients"] });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to delete patient.");
+    },
+  });
+
+  const handleDelete = (id: number, name: string) => {
+    if (window.confirm(`Delete patient "${name}"? This action cannot be undone.`)) {
+      deleteMutation.mutate(id);
+    }
+  };
+
+  const handleEdit = (paxId: string) => {
+    // Navigate to entry form and store paxId in sessionStorage for auto-load
+    sessionStorage.setItem("entryform_load_pax", paxId);
+    navigate({ to: "/entry-form" });
+  };
+
+  // Fetch dropdown options
+  const { data: agencies = [] } = useQuery<any[]>({
+    queryKey: ["agencies"],
+    queryFn: () => apiRequest("/agencies"),
+  });
+
+  const { data: mrs = [] } = useQuery<any[]>({
+    queryKey: ["mrs"],
+    queryFn: () => apiRequest("/mrs"),
+  });
+
+  // Fetch filtered patients
+  const { data: patients = [], isLoading, isFetching } = useQuery<any[]>({
+    queryKey: ["patients", filters],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (filters.search_field && filters.search_value) {
+        params.append("search_field", filters.search_field);
+        params.append("search_value", filters.search_value);
+      }
+      if (filters.from_date) params.append("from_date", filters.from_date);
+      if (filters.to_date) params.append("to_date", filters.to_date);
+      if (filters.agency_id && filters.agency_id !== "all") params.append("agency_id", filters.agency_id);
+      if (filters.mr_id && filters.mr_id !== "all") params.append("mr_id", filters.mr_id);
+
+      return apiRequest(`/patients?${params.toString()}`);
+    },
+  });
+
+  const { data: user } = useQuery<any>({
+    queryKey: ["currentUserProfile"],
+    queryFn: () => apiRequest("/auth/me"),
+    enabled: typeof window !== "undefined" && !!localStorage.getItem("mediadmin_token"),
+  });
+  const canEditPatient = user?.role === 'Admin' || user?.role_name === 'Superadmin' || (user?.permissions || []).includes('edit_patient');
+  const canDeletePatient = user?.role === 'Admin' || user?.role_name === 'Superadmin' || (user?.permissions || []).includes('delete_patient');
+
+  // Reset pagination to page 1 whenever filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
+
+  const [printRequest, setPrintRequest] = useState<{title: string, dateRange: string, timestamp: number} | null>(null);
+
+  const generatePrintHTML = (patientsData: any[], title: string, dateRange: string) => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast.error("Please allow popups to print reports.");
+      return;
+    }
+
+    const today = new Date().toLocaleDateString('en-GB', {
+      day: '2-digit', month: '2-digit', year: 'numeric'
+    });
+
+    const totalMedicalFee = patientsData.reduce((acc, curr) => acc + (Number(curr.medical_fee) || 0), 0);
+    const totalNiddleCharge = patientsData.reduce((acc, curr) => acc + (Number(curr.niddle_charge) || 0), 0);
+    const totalNet = totalMedicalFee + totalNiddleCharge;
+    const totalReceived = patientsData.reduce((acc, curr) => acc + (Number(curr.received_amount) || 0), 0);
+    const totalDue = patientsData.reduce((acc, curr) => acc + (Number(curr.due_amount) || 0), 0);
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${title}</title>
+        <style>
+          @page { size: A4 landscape; margin: 10mm; }
+          body { font-family: 'Arial', sans-serif; padding: 20px; font-size: 10px; color: #000; }
+          .header { display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: bold; background-color: #e0e0e0; padding: 6px; border: 1px solid #000; font-size: 11px; }
+          .title { font-size: 14px; margin-bottom: 10px; font-weight: bold; text-align: left; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 10px; }
+          th, td { border: 1px solid #000; padding: 4px 6px; text-align: center; }
+          th { background-color: #f5f5f5; font-weight: bold; }
+          .summary-boxes { display: flex; gap: 15px; flex-wrap: wrap; margin-top: 20px; font-size: 10px; justify-content: flex-start; }
+          .summary-box { border: 1px solid #000; padding: 4px 8px; display: flex; gap: 8px; align-items: center; }
+          .summary-label { font-weight: bold; }
+          @media print {
+            body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .no-print { display: none !important; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="margin-bottom: 20px; text-align: right;">
+          <button onclick="window.print()" style="padding: 8px 16px; background-color: #0f172a; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Print / Save as PDF</button>
+        </div>
+        <div class="title">${title}</div>
+        <div class="header">
+          <div>Searching Result: <span style="font-weight:normal; margin-left:10px;">${dateRange || 'All Data'}</span></div>
+          <div>Printing Date : <span style="font-weight:normal; margin-left:10px;">${today}</span></div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>SL</th>
+              <th>Entry Date</th>
+              <th>Px ID</th>
+              <th>Name</th>
+              <th>PP No</th>
+              <th>Agency</th>
+              <th>Total Fee</th>
+              <th>Received</th>
+              <th>Niddle</th>
+              <th>Remark</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${patientsData.length === 0 ? '<tr><td colspan="10">No records found</td></tr>' : ''}
+            ${patientsData.map((p, i) => `
+              <tr>
+                <td>${i + 1}</td>
+                <td>${p.date ? new Date(p.date).toLocaleDateString('en-GB') : ''}</td>
+                <td>${p.pax_id || ''}</td>
+                <td style="text-align:left;">${p.first_name} ${p.last_name || ''}</td>
+                <td>${p.passport_no || ''}</td>
+                <td>${p.agency?.name || ''}</td>
+                <td>${p.medical_fee || 0}</td>
+                <td>${p.received_amount || 0}</td>
+                <td>${p.niddle_charge || 0}</td>
+                <td>${p.medicalReport?.final_status || 'Pending'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div class="summary-boxes">
+            <div class="summary-box"><span class="summary-label">Medical Fee:</span> ${totalMedicalFee} /-</div>
+            <div class="summary-box"><span class="summary-label">Niddle Charge:</span> ${totalNiddleCharge} /-</div>
+            <div class="summary-box"><span class="summary-label">Total:</span> ${totalNet} /-</div>
+            <div class="summary-box"><span class="summary-label">M.Fee Received:</span> ${totalReceived} /-</div>
+            <div class="summary-box"><span class="summary-label">Total Received:</span> ${totalReceived} /-</div>
+            <div class="summary-box"><span class="summary-label">Total Due:</span> ${totalDue} /-</div>
+        </div>
+      </body>
+      </html>
+    `;
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
+  useEffect(() => {
+    if (printRequest && !isLoading && !isFetching) {
+      // Small timeout to ensure state is settled
+      const timer = setTimeout(() => {
+        generatePrintHTML(patients, printRequest.title, printRequest.dateRange);
+        setPrintRequest(null);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [patients, isLoading, isFetching, printRequest]);
+
+  const formatDateLabel = (d: string) => d ? new Date(d).toLocaleDateString('en-GB') : '';
+
+  const handleSearchByID = () => {
+    setFilters({
+      search_field: searchField,
+      search_value: searchValue,
+    });
+    setPrintRequest({
+      title: `Search By ID - ${searchField.toUpperCase()}: ${searchValue}`,
+      dateRange: 'All Data',
+      timestamp: Date.now()
+    });
+  };
+
+  const handleSearchByDate = () => {
+    setFilters({
+      from_date: dateFrom,
+      to_date: dateTo,
+    });
+    const range = (dateFrom || dateTo) ? `From: ${formatDateLabel(dateFrom)}  To: ${formatDateLabel(dateTo)}` : 'All Dates';
+    setPrintRequest({
+      title: 'Daily / Monthly Statement For Office',
+      dateRange: range,
+      timestamp: Date.now()
+    });
+  };
+
+  const handleSearchByAgency = () => {
+    setFilters({
+      agency_id: agencyId,
+      from_date: dateFrom,
+      to_date: dateTo,
+    });
+    const agencyName = agencyId === "all" ? "ALL AGENCIES" : agencies.find(a => String(a.id) === String(agencyId))?.name || "";
+    const range = (dateFrom || dateTo) ? `From: ${formatDateLabel(dateFrom)}  To: ${formatDateLabel(dateTo)}` : 'All Dates';
+    setPrintRequest({
+      title: `Agency History  ${agencyName}`,
+      dateRange: range,
+      timestamp: Date.now()
+    });
+  };
+
+  const handleSearchByMR = () => {
+    setFilters({
+      mr_id: mrId,
+      from_date: dateFrom,
+      to_date: dateTo,
+    });
+    const mrName = mrId === "all" ? "ALL MRs" : mrs.find(m => String(m.id) === String(mrId))?.name || "";
+    const range = (dateFrom || dateTo) ? `From: ${formatDateLabel(dateFrom)}  To: ${formatDateLabel(dateTo)}` : 'All Dates';
+    setPrintRequest({
+      title: `MR History  ${mrName}`,
+      dateRange: range,
+      timestamp: Date.now()
+    });
+  };
+
+  // Paginated Patient Calculations
+  const totalPages = Math.ceil(patients.length / itemsPerPage);
+  const paginatedPatients = patients.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  return (
+    <DashboardShell title="Database" subtitle="Search and filter the full patient database.">
+      <div className="grid gap-3">
+        <FilterCard title="By ID" onSearch={handleSearchByID}>
+          <div className="flex items-end gap-2">
+            <div>
+              <Label className="text-xs">Field</Label>
+              <Select value={searchField} onValueChange={setSearchField}>
+                <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pax">Pax_Id</SelectItem>
+                  <SelectItem value="passport">Passport</SelectItem>
+                  <SelectItem value="name">Name</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Value</Label>
+              <Input
+                placeholder="Type to search…"
+                className="w-[280px]"
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+              />
+            </div>
+          </div>
+        </FilterCard>
+
+        <FilterCard title="By date" onSearch={handleSearchByDate}>
+          <div>
+            <Label className="text-xs">From</Label>
+            <DatePicker value={dateFrom} onChange={setDateFrom} />
+          </div>
+          <div>
+            <Label className="text-xs">To</Label>
+            <DatePicker value={dateTo} onChange={setDateTo} />
+          </div>
+        </FilterCard>
+
+        <FilterCard title="By agency" onSearch={handleSearchByAgency}>
+          <div>
+            <Label className="text-xs">Agency</Label>
+            <Select value={agencyId} onValueChange={setAgencyId}>
+              <SelectTrigger className="w-[220px]"><SelectValue placeholder="Select agency" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">ALL AGENCIES</SelectItem>
+                {agencies.map((a) => (
+                  <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">From</Label>
+            <DatePicker value={dateFrom} onChange={setDateFrom} />
+          </div>
+          <div>
+            <Label className="text-xs">To</Label>
+            <DatePicker value={dateTo} onChange={setDateTo} />
+          </div>
+        </FilterCard>
+
+        <FilterCard title="By MR" onSearch={handleSearchByMR}>
+          <div>
+            <Label className="text-xs">MR</Label>
+            <Select value={mrId} onValueChange={setMrId}>
+              <SelectTrigger className="w-[220px]"><SelectValue placeholder="Select MR" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">ALL MRs</SelectItem>
+                {mrs.map((m) => (
+                  <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">From</Label>
+            <DatePicker value={dateFrom} onChange={setDateFrom} />
+          </div>
+          <div>
+            <Label className="text-xs">To</Label>
+            <DatePicker value={dateTo} onChange={setDateTo} />
+          </div>
+        </FilterCard>
+      </div>
+
+      <div className="card-surface mt-4 flex flex-col justify-between">
+        <div>
+          <div className="flex items-center justify-between border-b border-border/60 p-5">
+            <div>
+              <h3 className="font-display text-base font-semibold">Results</h3>
+              <p className="text-xs text-muted-foreground">{patients.length} records matching filters</p>
+            </div>
+            <Badge variant="secondary" className="bg-primary/10 text-primary">Live</Badge>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/60 text-left text-xs uppercase tracking-wider text-muted-foreground">
+                  <th className="px-5 py-3 font-medium">SL</th>
+                  <th className="px-5 py-3 font-medium">Entry Date</th>
+                  <th className="px-5 py-3 font-medium">Pax ID</th>
+                  <th className="px-5 py-3 font-medium">Name</th>
+                  <th className="px-5 py-3 font-medium">Agency</th>
+                  <th className="px-5 py-3 font-medium">Report Status</th>
+                  <th className="px-5 py-3 font-medium">X-Ray Result</th>
+                  <th className="px-5 py-3 text-right font-medium">Total Fee (৳)</th>
+                  <th className="px-5 py-3 text-right font-medium">Received (৳)</th>
+                  <th className="px-5 py-3 text-right font-medium">Due (৳)</th>
+                  <th className="px-5 py-3 text-center font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={11} className="px-5 py-6 text-center text-muted-foreground">
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        Loading records...
+                      </div>
+                    </td>
+                  </tr>
+                ) : paginatedPatients.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} className="px-5 py-6 text-center text-muted-foreground">
+                      No matching patient records found.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedPatients.map((r, index) => {
+                    const serialNum = (currentPage - 1) * itemsPerPage + index + 1;
+                    const reportStatus = r.medicalReport?.final_status || "Pending";
+                    const xrayStatus = r.xrayReport?.result || "Pending";
+                    return (
+                      <tr key={r.id} className="border-b border-border/40 last:border-0 hover:bg-muted/40">
+                        <td className="px-5 py-3 text-muted-foreground">{serialNum}</td>
+                        <td className="px-5 py-3 text-muted-foreground">{r.date}</td>
+                        <td className="px-5 py-3 font-mono text-xs text-primary font-semibold">{r.pax_id}</td>
+                        <td className="px-5 py-3 font-medium">{r.first_name} {r.last_name || ""}</td>
+                        <td className="px-5 py-3 text-muted-foreground">{r.agency?.name || "N/A"}</td>
+                        <td className="px-5 py-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                            reportStatus === "FIT"
+                              ? "bg-green-50 text-green-700 border-green-200"
+                              : reportStatus === "UNFIT"
+                              ? "bg-red-50 text-red-700 border-red-200"
+                              : "bg-amber-50 text-amber-700 border-amber-200"
+                          }`}>
+                            {reportStatus}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                            xrayStatus === "Normal"
+                              ? "bg-green-50 text-green-700 border-green-200"
+                              : xrayStatus === "Abnormal"
+                              ? "bg-red-50 text-red-700 border-red-200"
+                              : "bg-slate-50 text-slate-700 border-slate-200"
+                          }`}>
+                            {xrayStatus}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-right font-medium">{(Number(r.medical_fee) || 0).toLocaleString()}</td>
+                        <td className="px-5 py-3 text-right text-success font-medium">{(Number(r.received_amount) || 0).toLocaleString()}</td>
+                        <td className="px-5 py-3 text-right text-destructive font-medium">{(Number(r.due_amount) || 0).toLocaleString()}</td>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {/* Medical Report Action */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-teal-600 hover:text-teal-700 hover:bg-teal-50"
+                              onClick={() => {
+                                const route = r.country?.name?.toLowerCase() === 'malaysia' ? '/malaysia-report' : '/report-entry';
+                                sessionStorage.setItem("last_searched_patient_id", r.pax_id);
+                                navigate({ to: route });
+                              }}
+                              title="Enter Medical Report"
+                            >
+                              <FileText className="h-4 w-4" />
+                            </Button>
+
+                            {/* X-Ray Report Action */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                              onClick={() => {
+                                sessionStorage.setItem("xray_load_pax", r.pax_id);
+                                navigate({ to: "/xray" });
+                              }}
+                              title="Upload X-Ray"
+                            >
+                              <ScanLine className="h-4 w-4" />
+                            </Button>
+
+                            {canEditPatient && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-primary hover:text-primary hover:bg-primary/10"
+                                onClick={() => handleEdit(r.pax_id)}
+                                title="Edit patient details"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                            {canDeletePatient && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => handleDelete(r.id, `${r.first_name} ${r.last_name || ""}`)}
+                                disabled={deleteMutation.isPending}
+                                title="Delete patient"
+                              >
+                                {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Office Statement Aggregate Totals */}
+        {patients.length > 0 && (
+          <div className="border-t border-border/60 p-5 bg-muted/20">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Office Statement Totals</h4>
+            <div className="grid gap-3 grid-cols-2 md:grid-cols-5 text-sm">
+              <div className="bg-background rounded-lg border p-3 flex flex-col">
+                <span className="text-xs text-muted-foreground">Medical Fee</span>
+                <span className="font-semibold mt-1">৳ {patients.reduce((acc, curr) => acc + (Number(curr.medical_fee) || 0), 0).toLocaleString()}</span>
+              </div>
+              <div className="bg-background rounded-lg border p-3 flex flex-col">
+                <span className="text-xs text-muted-foreground">Needle Charge</span>
+                <span className="font-semibold mt-1">৳ {patients.reduce((acc, curr) => acc + (Number(curr.niddle_charge) || 0), 0).toLocaleString()}</span>
+              </div>
+              <div className="bg-background rounded-lg border p-3 flex flex-col">
+                <span className="text-xs text-muted-foreground">Total Net</span>
+                <span className="font-semibold mt-1 text-primary">৳ {(patients.reduce((acc, curr) => acc + (Number(curr.medical_fee) || 0), 0) + patients.reduce((acc, curr) => acc + (Number(curr.niddle_charge) || 0), 0)).toLocaleString()}</span>
+              </div>
+              <div className="bg-background rounded-lg border p-3 flex flex-col">
+                <span className="text-xs text-muted-foreground">Total Received</span>
+                <span className="font-semibold mt-1 text-success">৳ {patients.reduce((acc, curr) => acc + (Number(curr.received_amount) || 0), 0).toLocaleString()}</span>
+              </div>
+              <div className="bg-background rounded-lg border p-3 flex flex-col">
+                <span className="text-xs text-muted-foreground">Total Due</span>
+                <span className="font-semibold mt-1 text-destructive">৳ {patients.reduce((acc, curr) => acc + (Number(curr.due_amount) || 0), 0).toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {patients.length > 0 && (
+          <div className="flex items-center justify-between border-t border-border/60 p-4 bg-muted/10">
+            <span className="text-xs text-muted-foreground">
+              Showing {Math.min((currentPage - 1) * itemsPerPage + 1, patients.length)} to {Math.min(currentPage * itemsPerPage, patients.length)} of {patients.length} entries
+            </span>
+            <div className="flex gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              >
+                Previous
+              </Button>
+              {(() => {
+                const getPageNumbers = (current: number, total: number) => {
+                  const pages: (number | string)[] = [];
+                  if (total <= 7) {
+                    for (let i = 1; i <= total; i++) pages.push(i);
+                  } else {
+                    if (current <= 4) {
+                      pages.push(1, 2, 3, 4, 5, '...', total);
+                    } else if (current >= total - 3) {
+                      pages.push(1, '...', total - 4, total - 3, total - 2, total - 1, total);
+                    } else {
+                      pages.push(1, '...', current - 1, current, current + 1, '...', total);
+                    }
+                  }
+                  return pages;
+                };
+                return getPageNumbers(currentPage, totalPages).map((page, idx) => {
+                  if (page === '...') {
+                    return (
+                      <span key={`el-${idx}`} className="px-2 py-1 text-sm text-muted-foreground self-end">
+                        ...
+                      </span>
+                    );
+                  }
+                  return (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      className={`h-8 w-8 p-0 ${currentPage === page ? "gradient-primary text-white" : ""}`}
+                      onClick={() => setCurrentPage(Number(page))}
+                    >
+                      {page}
+                    </Button>
+                  );
+                });
+              })()}
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === totalPages || totalPages === 0}
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </DashboardShell>
+  );
+}
