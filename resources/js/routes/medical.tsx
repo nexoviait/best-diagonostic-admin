@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +23,15 @@ function MedicalSearchPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#cccccc] px-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-[#cccccc] px-4">
+      <button
+        type="button"
+        onClick={() => window.history.back()}
+        className="absolute left-4 top-4 flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Back
+      </button>
       <div className="w-full max-w-[500px] rounded border border-gray-300 bg-white p-8 shadow-sm">
         <h2 className="mb-6 text-center text-sm font-semibold tracking-wide text-gray-800 uppercase">
           Check Online Medical Certificate

@@ -801,17 +801,17 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
     <DashboardShell title={shellTitle} subtitle={shellSubtitle}>
       {/* Patient lookup at the top */}
       <div className="card-surface p-4 mb-4 flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex-1 min-w-[200px]">
+        <div className="w-full min-w-0 flex-1 sm:w-auto">
           <Label className="text-xs uppercase text-muted-foreground block mb-1">Search Patient by ID</Label>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Input
               placeholder="e.g. BEST000001"
               value={searchId}
               onChange={(e) => setSearchId(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              className="h-9 w-60"
+              className="h-9 w-full sm:w-60"
             />
-            <Button onClick={handleSearch} className="gradient-primary h-9" disabled={loading}>
+            <Button onClick={handleSearch} className="gradient-primary h-9 w-full sm:w-auto" disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
               Search
             </Button>
@@ -820,9 +820,9 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
       </div>
 
       {patient && (
-        <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+        <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[220px_1fr]">
           {/* Left Shortcuts Menu Panel */}
-          <aside className="card-surface p-3 h-fit space-y-3">
+          <aside className="card-surface min-w-0 p-3 h-fit space-y-3">
             <div className="space-y-1">
               <Button
                 variant="ghost"
@@ -917,7 +917,7 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
           </aside>
 
           {/* Right form inputs grid or previews */}
-          <div className="card-surface p-6 space-y-6">
+          <div className="card-surface min-w-0 p-6 space-y-6">
             {activeTab === "Edit Report" && (
               <>
                 {/* Top Patient Meta Grid */}

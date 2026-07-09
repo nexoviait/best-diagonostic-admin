@@ -26,12 +26,12 @@ function FilterCard({
   onSearch: () => void;
 }) {
   return (
-    <div className="card-surface flex flex-wrap items-end gap-3 p-4">
-      <div className="min-w-[110px] text-xs font-medium uppercase tracking-wider text-muted-foreground">
+    <div className="card-surface flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-end">
+      <div className="shrink-0 text-xs font-medium uppercase tracking-wider text-muted-foreground sm:w-[90px]">
         {title}
       </div>
       {children}
-      <Button onClick={onSearch} className="ml-auto gradient-primary">
+      <Button onClick={onSearch} className="w-full gradient-primary sm:ml-auto sm:w-auto">
         <Search className="mr-1 h-4 w-4" /> Search
       </Button>
     </div>
@@ -302,11 +302,11 @@ function DatabasePage() {
     <DashboardShell title="Database" subtitle="Search and filter the full patient database.">
       <div className="grid gap-3">
         <FilterCard title="By ID" onSearch={handleSearchByID}>
-          <div className="flex items-end gap-2">
-            <div>
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:w-auto">
+            <div className="w-full sm:w-[140px]">
               <Label className="text-xs">Field</Label>
               <Select value={searchField} onValueChange={setSearchField}>
-                <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="pax">Pax_Id</SelectItem>
                   <SelectItem value="passport">Passport</SelectItem>
@@ -314,11 +314,11 @@ function DatabasePage() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
+            <div className="w-full sm:w-[240px]">
               <Label className="text-xs">Value</Label>
               <Input
                 placeholder="Type to search…"
-                className="w-[280px]"
+                className="w-full"
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
               />
@@ -327,59 +327,65 @@ function DatabasePage() {
         </FilterCard>
 
         <FilterCard title="By date" onSearch={handleSearchByDate}>
-          <div>
-            <Label className="text-xs">From</Label>
-            <DatePicker value={dateFrom} onChange={setDateFrom} />
-          </div>
-          <div>
-            <Label className="text-xs">To</Label>
-            <DatePicker value={dateTo} onChange={setDateTo} />
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:w-auto">
+            <div className="w-full sm:w-[160px]">
+              <Label className="text-xs">From</Label>
+              <DatePicker value={dateFrom} onChange={setDateFrom} />
+            </div>
+            <div className="w-full sm:w-[160px]">
+              <Label className="text-xs">To</Label>
+              <DatePicker value={dateTo} onChange={setDateTo} />
+            </div>
           </div>
         </FilterCard>
 
         <FilterCard title="By agency" onSearch={handleSearchByAgency}>
-          <div>
-            <Label className="text-xs">Agency</Label>
-            <Select value={agencyId} onValueChange={setAgencyId}>
-              <SelectTrigger className="w-[220px]"><SelectValue placeholder="Select agency" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">ALL AGENCIES</SelectItem>
-                {agencies.map((a) => (
-                  <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">From</Label>
-            <DatePicker value={dateFrom} onChange={setDateFrom} />
-          </div>
-          <div>
-            <Label className="text-xs">To</Label>
-            <DatePicker value={dateTo} onChange={setDateTo} />
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:w-auto">
+            <div className="w-full sm:w-[200px]">
+              <Label className="text-xs">Agency</Label>
+              <Select value={agencyId} onValueChange={setAgencyId}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Select agency" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">ALL AGENCIES</SelectItem>
+                  {agencies.map((a) => (
+                    <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full sm:w-[160px]">
+              <Label className="text-xs">From</Label>
+              <DatePicker value={dateFrom} onChange={setDateFrom} />
+            </div>
+            <div className="w-full sm:w-[160px]">
+              <Label className="text-xs">To</Label>
+              <DatePicker value={dateTo} onChange={setDateTo} />
+            </div>
           </div>
         </FilterCard>
 
         <FilterCard title="By MR" onSearch={handleSearchByMR}>
-          <div>
-            <Label className="text-xs">MR</Label>
-            <Select value={mrId} onValueChange={setMrId}>
-              <SelectTrigger className="w-[220px]"><SelectValue placeholder="Select MR" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">ALL MRs</SelectItem>
-                {mrs.map((m) => (
-                  <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">From</Label>
-            <DatePicker value={dateFrom} onChange={setDateFrom} />
-          </div>
-          <div>
-            <Label className="text-xs">To</Label>
-            <DatePicker value={dateTo} onChange={setDateTo} />
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:w-auto">
+            <div className="w-full sm:w-[200px]">
+              <Label className="text-xs">MR</Label>
+              <Select value={mrId} onValueChange={setMrId}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Select MR" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">ALL MRs</SelectItem>
+                  {mrs.map((m) => (
+                    <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full sm:w-[160px]">
+              <Label className="text-xs">From</Label>
+              <DatePicker value={dateFrom} onChange={setDateFrom} />
+            </div>
+            <div className="w-full sm:w-[160px]">
+              <Label className="text-xs">To</Label>
+              <DatePicker value={dateTo} onChange={setDateTo} />
+            </div>
           </div>
         </FilterCard>
       </div>
@@ -559,11 +565,11 @@ function DatabasePage() {
 
         {/* Pagination Controls */}
         {patients.length > 0 && (
-          <div className="flex items-center justify-between border-t border-border/60 p-4 bg-muted/10">
+          <div className="flex flex-col gap-3 border-t border-border/60 p-4 bg-muted/10 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-xs text-muted-foreground">
               Showing {Math.min((currentPage - 1) * itemsPerPage + 1, patients.length)} to {Math.min(currentPage * itemsPerPage, patients.length)} of {patients.length} entries
             </span>
-            <div className="flex gap-1">
+            <div className="flex flex-wrap gap-1">
               <Button
                 variant="outline"
                 size="sm"

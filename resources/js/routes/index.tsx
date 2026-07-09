@@ -111,7 +111,7 @@ function Overview() {
       {/* Main grid */}
       <section className="grid gap-6 lg:grid-cols-3">
         {/* Recent entries */}
-        <div className="card-surface lg:col-span-2">
+        <div className="card-surface lg:col-span-2 min-w-0">
           <div className="flex items-center justify-between border-b border-border/60 p-5">
             <div>
               <h3 className="font-display text-base font-semibold">Recent Patient Entries</h3>
@@ -197,7 +197,7 @@ function Overview() {
               <Activity className="h-4 w-4 text-primary" />
               <h3 className="font-display text-base font-semibold">Directory</h3>
             </div>
-            <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+            <div className="mt-4 grid grid-cols-2 gap-2 text-center sm:grid-cols-3">
               <Link to="/agency-list" className="rounded-lg bg-muted/50 p-3 hover:bg-muted">
                 <Building2 className="mx-auto h-4 w-4 text-primary" />
                 <p className="mt-1 font-display text-lg font-semibold">

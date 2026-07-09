@@ -126,11 +126,11 @@ function CountryListPage() {
 
   return (
     <DashboardShell title="Country List" subtitle="Manage available countries for medical reports and entry forms.">
-      <div className={`grid gap-6 ${showForm ? 'lg:grid-cols-[380px_1fr]' : 'lg:grid-cols-1'}`}>
-        
+      <div className={`grid min-w-0 grid-cols-1 gap-6 ${showForm ? 'lg:grid-cols-[380px_1fr]' : ''}`}>
+
         {/* Form Panel */}
         {showForm && (
-        <div className="card-surface p-5 h-fit">
+        <div className="card-surface min-w-0 p-5 h-fit">
           <h3 className="font-display text-base font-semibold">
             {selectedId ? "Edit Country" : "Add Country"}
           </h3>
@@ -179,16 +179,16 @@ function CountryListPage() {
         )}
 
         {/* List Table */}
-        <div className="card-surface flex flex-col justify-between">
+        <div className="card-surface min-w-0 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between border-b border-border/60 p-5">
+            <div className="flex flex-col gap-3 border-b border-border/60 p-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="font-display text-base font-semibold">All countries</h3>
                 <p className="text-xs text-muted-foreground">{filteredCountries.length} destinations</p>
               </div>
               <Input
                 placeholder="Filter…"
-                className="w-52"
+                className="w-full sm:w-52"
                 value={filterQuery}
                 onChange={(e) => setFilterQuery(e.target.value)}
               />
@@ -261,11 +261,11 @@ function CountryListPage() {
 
           {/* Pagination Controls */}
           {filteredCountries.length > 0 && (
-            <div className="flex items-center justify-between border-t border-border/60 p-4 bg-muted/10">
+            <div className="flex flex-col gap-3 border-t border-border/60 p-4 bg-muted/10 sm:flex-row sm:items-center sm:justify-between">
               <span className="text-xs text-muted-foreground">
                 Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredCountries.length)} to {Math.min(currentPage * itemsPerPage, filteredCountries.length)} of {filteredCountries.length} entries
               </span>
-              <div className="flex gap-1">
+              <div className="flex flex-wrap gap-1">
                 <Button
                   variant="outline"
                   size="sm"

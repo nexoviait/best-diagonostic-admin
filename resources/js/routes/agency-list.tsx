@@ -159,10 +159,10 @@ function AgencyListPage() {
 
   return (
     <DashboardShell title="Agency List" subtitle="Manage the directory of partner agencies and billing details.">
-      <div className={`grid gap-6 ${showForm ? 'lg:grid-cols-[380px_1fr]' : 'lg:grid-cols-1'}`}>
+      <div className={`grid min-w-0 grid-cols-1 gap-6 ${showForm ? 'lg:grid-cols-[380px_1fr]' : ''}`}>
         {/* Form Panel */}
         {showForm && (
-        <div className="card-surface p-5 h-fit space-y-4">
+        <div className="card-surface min-w-0 p-5 h-fit space-y-4">
           <h3 className="font-display text-base font-semibold">
             {selectedId ? "Edit Agency Profile" : "Add New Agency"}
           </h3>
@@ -265,16 +265,16 @@ function AgencyListPage() {
         )}
 
         {/* List Table */}
-        <div className="card-surface flex flex-col justify-between">
+        <div className="card-surface min-w-0 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between border-b border-border/60 p-5">
+            <div className="flex flex-col gap-3 border-b border-border/60 p-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="font-display text-base font-semibold">All Agencies</h3>
                 <p className="text-xs text-muted-foreground">{filteredAgencies.length} partners</p>
               </div>
               <Input
                 placeholder="Filter by name, email, contact..."
-                className="w-64"
+                className="w-full sm:w-64"
                 value={filterQuery}
                 onChange={(e) => setFilterQuery(e.target.value)}
               />
@@ -365,11 +365,11 @@ function AgencyListPage() {
 
           {/* Pagination Controls */}
           {filteredAgencies.length > 0 && (
-            <div className="flex items-center justify-between border-t border-border/60 p-4 bg-muted/10">
+            <div className="flex flex-col gap-3 border-t border-border/60 p-4 bg-muted/10 sm:flex-row sm:items-center sm:justify-between">
               <span className="text-xs text-muted-foreground">
                 Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredAgencies.length)} to {Math.min(currentPage * itemsPerPage, filteredAgencies.length)} of {filteredAgencies.length} entries
               </span>
-              <div className="flex gap-1">
+              <div className="flex flex-wrap gap-1">
                 <Button
                   variant="outline"
                   size="sm"

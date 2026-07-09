@@ -128,24 +128,24 @@ function XrayPage() {
   return (
     <DashboardShell title="X-Ray Upload" subtitle="Attach and report X-Ray findings to a patient.">
       <div className="card-surface p-6 space-y-6">
-        <div className="flex flex-wrap items-end gap-2 border-b border-border/60 pb-5">
-          <div>
+        <div className="flex flex-col gap-4 border-b border-border/60 pb-5 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
+          <div className="w-full sm:w-auto">
             <Label className="text-xs">Search Patient by ID</Label>
-            <div className="flex gap-2 mt-1">
+            <div className="mt-1 flex flex-col gap-2 sm:flex-row">
               <Input
                 placeholder="e.g. BEST000001"
-                className="w-[240px]"
+                className="w-full sm:w-[240px]"
                 value={searchId}
                 onChange={(e) => setSearchId(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               />
-              <Button onClick={handleSearch} className="gradient-primary" disabled={loading}>
+              <Button onClick={handleSearch} className="w-full gradient-primary sm:w-auto" disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                 Search
               </Button>
             </div>
           </div>
-          <h3 className="ml-auto font-display text-lg font-semibold">X-Ray Report Entry</h3>
+          <h3 className="font-display text-lg font-semibold sm:ml-auto">X-Ray Report Entry</h3>
         </div>
 
         {patient && (

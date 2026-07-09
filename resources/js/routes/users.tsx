@@ -176,10 +176,10 @@ function UsersPage() {
 
   return (
     <DashboardShell title="User Management" subtitle="Create, edit, and manage application operators.">
-      <div className="grid gap-6 lg:grid-cols-[400px_1fr]">
-        
+      <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[400px_1fr]">
+
         {/* Form Panel */}
-        <div className="card-surface p-5 space-y-4 h-fit">
+        <div className="card-surface min-w-0 p-5 space-y-4 h-fit">
           <h3 className="font-display text-base font-semibold flex items-center gap-1.5">
             {selectedId ? <RefreshCw className="h-4.5 w-4.5 text-primary animate-spin-once" /> : <UserPlus className="h-4.5 w-4.5 text-primary" />}
             {selectedId ? "Edit User Account" : "Add User Account"}
@@ -281,7 +281,7 @@ function UsersPage() {
         </div>
 
         {/* List Table */}
-        <div className="card-surface">
+        <div className="card-surface min-w-0">
           <div className="flex items-center justify-between border-b border-border/60 p-5">
             <div>
               <h3 className="font-display text-base font-semibold">Registered Users</h3>
@@ -363,11 +363,11 @@ function UsersPage() {
 
           {/* Pagination Controls */}
           {filteredUsers.length > 0 && (
-            <div className="flex items-center justify-between border-t border-border/60 p-4 bg-muted/10">
+            <div className="flex flex-col gap-3 border-t border-border/60 p-4 bg-muted/10 sm:flex-row sm:items-center sm:justify-between">
               <span className="text-xs text-muted-foreground">
                 Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredUsers.length)} to {Math.min(currentPage * itemsPerPage, filteredUsers.length)} of {filteredUsers.length} entries
               </span>
-              <div className="flex gap-1">
+              <div className="flex flex-wrap gap-1">
                 <Button
                   variant="outline"
                   size="sm"

@@ -472,11 +472,11 @@ function AgencyBalancePage() {
 
         {/* Pagination Controls */}
         {invoices.length > 0 && (
-          <div className="flex items-center justify-between border-t border-border/60 p-4 bg-muted/10">
+          <div className="flex flex-col gap-3 border-t border-border/60 p-4 bg-muted/10 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-xs text-muted-foreground">
               Showing {Math.min((currentPage - 1) * itemsPerPage + 1, invoices.length)} to {Math.min(currentPage * itemsPerPage, invoices.length)} of {invoices.length} entries
             </span>
-            <div className="flex gap-1">
+            <div className="flex flex-wrap gap-1">
               <Button
                 variant="outline"
                 size="sm"

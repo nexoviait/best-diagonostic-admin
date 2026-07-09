@@ -991,9 +991,9 @@ function EntryFormPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+      <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[220px_1fr]">
         {/* Sidebar Actions */}
-        <aside className="card-surface p-3 h-fit space-y-3">
+        <aside className="card-surface min-w-0 p-3 h-fit space-y-3">
           <div className="space-y-1">
             {sideActions.map((a) => {
               const isActive = activeTab === a.label;
@@ -1022,7 +1022,7 @@ function EntryFormPage() {
         </aside>
 
         {/* Content Panel */}
-        <div className="card-surface p-6">
+        <div className="card-surface min-w-0 p-6">
 
           {/* TAB 1: New Entry registration form */}
           {activeTab === "New Entry" && (
