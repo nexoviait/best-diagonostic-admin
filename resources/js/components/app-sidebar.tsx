@@ -67,8 +67,14 @@ export function AppSidebar() {
     queryFn: () => apiRequest("/auth/me"),
     enabled: typeof window !== "undefined" && !!localStorage.getItem("mediadmin_token"),
   });
-  const logoSrc = user?.logo_path || "/assets/images/best-logo.png";
-  const companyName = user?.company_name_en || "Best Health";
+
+  const { data: settings } = useQuery<any>({
+    queryKey: ["public-settings"],
+    queryFn: () => apiRequest("/public/site-settings"),
+  });
+
+  const logoSrc = settings?.logo_path || "/assets/images/best-logo.png";
+  const companyName = settings?.company_name_en || "Best Health";
 
 
   const isActive = (url: string) => (url === "/" ? pathname === "/" : pathname.startsWith(url));
