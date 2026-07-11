@@ -13,9 +13,13 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 
 use App\Models\User;
+use App\Traits\StoresPublicUploads;
 
 class PatientController extends Controller
 {
+    use StoresPublicUploads;
+
+
     public function getPublicSettings()
     {
         $admin = User::where('role', 'Admin')->first() ?? User::first();
@@ -177,13 +181,13 @@ class PatientController extends Controller
         // Handle Image upload if any
         $imagePath = null;
         if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('patients', 'public');
+            $imagePath = $this->storePublicUpload($request->file('image'), 'patients', 'photo');
         }
 
         // Handle Fingerprint upload if any
         $fingerprintPath = null;
         if ($request->hasFile('fingerprint')) {
-            $fingerprintPath = $request->file('fingerprint')->store('patients/fingerprints', 'public');
+            $fingerprintPath = $this->storePublicUpload($request->file('fingerprint'), 'patients/fingerprints', 'fingerprint');
         }
 
         DB::beginTransaction();
@@ -287,14 +291,12 @@ class PatientController extends Controller
 
         // Handle Image upload if any
         if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('patients', 'public');
-            $patient->image_path = $imagePath;
+            $patient->image_path = $this->storePublicUpload($request->file('image'), 'patients', 'photo');
         }
 
         // Handle Fingerprint upload if any
         if ($request->hasFile('fingerprint')) {
-            $fingerprintPath = $request->file('fingerprint')->store('patients/fingerprints', 'public');
-            $patient->fingerprint_path = $fingerprintPath;
+            $patient->fingerprint_path = $this->storePublicUpload($request->file('fingerprint'), 'patients/fingerprints', 'fingerprint');
         }
 
         $received = $request->input('received_amount', $patient->received_amount);

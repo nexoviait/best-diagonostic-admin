@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/toast-error";
 import { DatePicker } from "@/components/ui/date-picker";
 
 export const Route = createFileRoute("/agency-balance")({ component: AgencyBalancePage });
@@ -115,7 +116,7 @@ function AgencyBalancePage() {
       refetch();
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to record payment.");
+      toastApiError(err, "Failed to record payment.");
     },
   });
 

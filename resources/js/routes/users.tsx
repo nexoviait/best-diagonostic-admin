@@ -9,6 +9,9 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/toast-error";
+import { FieldError } from "@/components/ui/field-error";
+import { useFieldErrors } from "@/lib/use-field-errors";
 
 export const Route = createFileRoute("/users")({ component: UsersPage });
 
@@ -25,6 +28,7 @@ function UsersPage() {
   const [roleId, setRoleId] = useState<string>("");
   const [status, setStatus] = useState("1");
   const [filterQuery, setFilterQuery] = useState("");
+  const { fieldErrors, setFromError, clear, clearAll } = useFieldErrors();
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -46,6 +50,25 @@ function UsersPage() {
     enabled: typeof window !== "undefined" && !!localStorage.getItem("mediadmin_token"),
   });
   const canManageUsers = currentUser?.role === 'Admin' || currentUser?.role_name === 'Superadmin' || (currentUser?.permissions || []).includes('manage_users');
+
+  useEffect(() => {
+    if (currentUser && !canManageUsers) {
+      console.warn(
+        '[users] Create/Manage Users blocked for current user — role:', currentUser.role,
+        'role_name:', currentUser.role_name,
+        'permissions:', currentUser.permissions
+      );
+    }
+  }, [currentUser, canManageUsers]);
+
+  // Fields required to enable the Create User button. Surfaced in the UI so
+  // a disabled button is never mysterious — it always states what's missing.
+  const createFormMissingFields = [
+    !name && "Full Name",
+    !username && "Username",
+    !email && "Email",
+    !password && "Password",
+  ].filter(Boolean) as string[];
 
   // Load Roles
   const { data: roles = [] } = useQuery<any[]>({
@@ -75,7 +98,8 @@ function UsersPage() {
       queryClient.invalidateQueries({ queryKey: ["users"] });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to add user.");
+      setFromError(err);
+      toastApiError(err, "Failed to add user.");
     },
   });
 
@@ -104,7 +128,8 @@ function UsersPage() {
       queryClient.invalidateQueries({ queryKey: ["users"] });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to update user.");
+      setFromError(err);
+      toastApiError(err, "Failed to update user.");
     },
   });
 
@@ -120,11 +145,12 @@ function UsersPage() {
       queryClient.invalidateQueries({ queryKey: ["users"] });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to delete user.");
+      toastApiError(err, "Failed to delete user.");
     },
   });
 
   const handleSelectForEdit = (user: any) => {
+    clearAll();
     setSelectedId(String(user.id));
     setName(user.name || "");
     setUsername(user.username || "");
@@ -142,6 +168,7 @@ function UsersPage() {
     setEmail("");
     setPassword("");
     setMobileNo("");
+    clearAll();
     setRoleId("");
     setStatus("1");
   };
@@ -187,38 +214,46 @@ function UsersPage() {
           
           <div className="space-y-3">
             <div>
-              <Label>Full Name</Label>
+              <Label>Full Name {!selectedId && <span className="text-red-500">*</span>}</Label>
               <Input
                 placeholder="John Doe"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => { setName(e.target.value); clear("name"); }}
               />
+              <FieldError message={fieldErrors.name} />
             </div>
             <div>
-              <Label>Username</Label>
+              <Label>Username {!selectedId && <span className="text-red-500">*</span>}</Label>
               <Input
                 placeholder="johndoe"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => { setUsername(e.target.value); clear("username"); }}
               />
+              <FieldError message={fieldErrors.username} />
             </div>
             <div>
-              <Label>Email</Label>
+              <Label>Email {!selectedId && <span className="text-red-500">*</span>}</Label>
               <Input
                 type="email"
                 placeholder="johndoe@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); clear("email"); }}
               />
+              <FieldError message={fieldErrors.email} />
             </div>
             <div>
-              <Label>{selectedId ? "Password (Leave blank to keep current)" : "Password"}</Label>
+              <Label>
+                {selectedId ? "Password (Leave blank to keep current)" : (
+                  <>Password <span className="text-red-500">*</span></>
+                )}
+              </Label>
               <Input
                 type="password"
                 placeholder="••••••••"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); clear("password"); }}
               />
+              <FieldError message={fieldErrors.password} />
             </div>
             <div>
               <Label>Mobile No</Label>
@@ -251,16 +286,28 @@ function UsersPage() {
             </div>
           </div>
 
-          <div className="flex gap-2 pt-2">
+          <div className="flex flex-col gap-2 pt-2">
             {!selectedId ? (
-              <Button
-                className="gradient-primary flex-1"
-                onClick={() => saveMutation.mutate()}
-                disabled={saveMutation.isPending || !name || !username || !email || !password}
-              >
-                {saveMutation.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Save className="mr-1 h-4 w-4" />}
-                Create User
-              </Button>
+              <>
+                <Button
+                  className="gradient-primary flex-1"
+                  onClick={() => saveMutation.mutate()}
+                  disabled={saveMutation.isPending || createFormMissingFields.length > 0}
+                  title={
+                    createFormMissingFields.length
+                      ? `Fill in required fields: ${createFormMissingFields.join(", ")}`
+                      : undefined
+                  }
+                >
+                  {saveMutation.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Save className="mr-1 h-4 w-4" />}
+                  Create User
+                </Button>
+                {createFormMissingFields.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Required: {createFormMissingFields.join(", ")}
+                  </p>
+                )}
+              </>
             ) : (
               <>
                 <Button

@@ -112,7 +112,10 @@ function RootComponent() {
   }, [user, settings]);
 
   useEffect(() => {
-    // Refresh JWT access token to extend session validity
+    // Refresh JWT access token to extend session validity.
+    // Refresh failures are non-fatal here: apiRequest() itself retries any
+    // 401 with a fresh refresh before forcing a logout, so a missed beat in
+    // this proactive refresh does not by itself log the user out.
     const refreshAccessToken = async () => {
       const token = getToken();
       if (!token) return;
@@ -121,17 +124,37 @@ function RootComponent() {
         const data = await apiRequest("/auth/refresh", { method: "POST" });
         if (data && data.access_token) {
           setToken(data.access_token);
+          console.info("[auth] access token refreshed at", new Date().toISOString());
         }
-      } catch {
-        // Token refresh silently fails — user will be redirected to login on next API call
+      } catch (err) {
+        console.warn("[auth] proactive token refresh failed (will retry):", err);
       }
     };
 
-
-    // Schedule background token refresh every 15 minutes (900000ms)
+    // setInterval is throttled/suspended in backgrounded tabs and stops
+    // entirely across laptop sleep, so a token can silently outlive its TTL
+    // while the tab is inactive. Re-checking on visibilitychange/focus
+    // catches that case the moment the user comes back, instead of waiting
+    // for the next interval tick (which may never fire in the background).
     const interval = setInterval(refreshAccessToken, 15 * 60 * 1000);
 
-    return () => clearInterval(interval);
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === "visible") {
+        refreshAccessToken();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+    window.addEventListener("focus", handleVisibilityOrFocus);
+
+    // Also refresh once on mount in case the tab was left open across a
+    // full-page load with an already-stale (but not yet expired) token.
+    refreshAccessToken();
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+    };
   }, []);
 
   return (

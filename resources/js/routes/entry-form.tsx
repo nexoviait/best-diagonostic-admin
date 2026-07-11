@@ -10,6 +10,10 @@ import JsBarcode from "jsbarcode";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/toast-error";
+import { FieldError } from "@/components/ui/field-error";
+import { validateImageFile } from "@/lib/validate-image";
+import { useFieldErrors } from "@/lib/use-field-errors";
 import { DatePicker } from "@/components/ui/date-picker";
 
 export const Route = createFileRoute("/entry-form")({ component: EntryFormPage });
@@ -50,11 +54,14 @@ function BarcodePreview({ value, displayValue = false, height = 22 }: { value: s
 
 
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, error }: { label: string; children: React.ReactNode; error?: string | null }) {
   return (
-    <div className="grid grid-cols-[130px_1fr] items-center gap-3">
-      <Label className="text-sm text-muted-foreground">{label}</Label>
-      {children}
+    <div className="grid grid-cols-[130px_1fr] items-start gap-3">
+      <Label className="text-sm text-muted-foreground pt-2">{label}</Label>
+      <div>
+        {children}
+        <FieldError message={error} />
+      </div>
     </div>
   );
 }
@@ -103,6 +110,21 @@ function EntryFormPage() {
   const [mrId, setMrId] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [fingerprintFile, setFingerprintFile] = useState<File | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [fingerprintError, setFingerprintError] = useState<string | null>(null);
+  const { fieldErrors, setFromError, clear } = useFieldErrors();
+
+  const handleImageFileChange = (file: File | null) => {
+    setImageError(validateImageFile(file, { maxSizeKB: 2048 }));
+    setImageFile(file);
+    clear("image");
+  };
+
+  const handleFingerprintFileChange = (file: File | null) => {
+    setFingerprintError(validateImageFile(file, { maxSizeKB: 2048 }));
+    setFingerprintFile(file);
+    clear("fingerprint");
+  };
 
   // Financials
   const [medicalFee, setMedicalFee] = useState(3500);
@@ -140,14 +162,21 @@ function EntryFormPage() {
     setInWords(numberToWords(medicalFee));
   }, [medicalFee]);
 
-  useEffect(() => {
-    if (agencyId) {
-      const selected = agencies.find((a) => String(a.id) === agencyId);
+  // Auto-fill the medical fee from the agency's default price, but only when
+  // the user actively picks an agency for a brand-new entry (see the Agency
+  // <Select> below). This used to be a useEffect watching [agencyId, agencies],
+  // which also fired while editing an existing patient — any time the agencies
+  // list loaded/changed after populateForm() had already set agencyId, it
+  // silently overwrote the patient's real saved medical_fee.
+  const handleAgencyChange = (newAgencyId: string) => {
+    setAgencyId(newAgencyId);
+    if (!isEditing) {
+      const selected = agencies.find((a) => String(a.id) === newAgencyId);
       if (selected && selected.price) {
         setMedicalFee(Number(selected.price));
       }
     }
-  }, [agencyId, agencies]);
+  };
 
   // Populate form fields from a loaded patient object
   const populateForm = (p: any) => {
@@ -191,7 +220,7 @@ function EntryFormPage() {
           populateForm(data);
           toast.success("Patient record loaded for editing.");
         } catch (err: any) {
-          toast.error(err.message || "Patient not found.");
+          toastApiError(err, "Patient not found.");
         } finally {
           setSearchLoading(false);
         }
@@ -213,7 +242,7 @@ function EntryFormPage() {
       populateForm(data);
       toast.success("Patient record loaded successfully.");
     } catch (err: any) {
-      toast.error(err.message || "Patient not found.");
+      toastApiError(err, "Patient not found.");
     } finally {
       setSearchLoading(false);
     }
@@ -232,11 +261,15 @@ function EntryFormPage() {
       toast.success(`Patient entry created successfully! ID is ${savedPatient.pax_id}`);
       setActivePatient(savedPatient);
       setIsEditing(true);
+      setFromError(null);
       // Auto switch to Card Front tab to show details!
       setActiveTab("Card Front");
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to create patient entry.");
+      setFromError(err);
+      if (err?.fields?.image) setImageError(err.fields.image);
+      if (err?.fields?.fingerprint) setFingerprintError(err.fields.fingerprint);
+      toastApiError(err, "Failed to create patient entry.");
     },
   });
 
@@ -271,9 +304,13 @@ function EntryFormPage() {
       setActivePatient(updatedPatient);
       toast.success(`Patient record updated successfully!`);
       setActiveTab("Card Front");
+      setFromError(null);
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to update patient entry.");
+      setFromError(err);
+      if (err?.fields?.image) setImageError(err.fields.image);
+      if (err?.fields?.fingerprint) setFingerprintError(err.fields.fingerprint);
+      toastApiError(err, "Failed to update patient entry.");
     },
   });
 
@@ -1093,7 +1130,7 @@ function EntryFormPage() {
                 </Field>
 
                 <Field label="Agency">
-                  <Select value={agencyId} onValueChange={setAgencyId}>
+                  <Select value={agencyId} onValueChange={handleAgencyChange}>
                     <SelectTrigger><SelectValue placeholder="Select agency" /></SelectTrigger>
                     <SelectContent>
                       {agencies.map((a) => (
@@ -1114,19 +1151,19 @@ function EntryFormPage() {
                   </Select>
                 </Field>
 
-                <Field label="Image">
+                <Field label="Image" error={imageError || fieldErrors.image}>
                   <Input
                     type="file"
-                    accept="image/*"
-                    onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                    accept="image/jpeg,image/png,image/gif"
+                    onChange={(e) => handleImageFileChange(e.target.files?.[0] || null)}
                   />
                 </Field>
 
-                <Field label="Fingerprint">
+                <Field label="Fingerprint" error={fingerprintError || fieldErrors.fingerprint}>
                   <Input
                     type="file"
-                    accept="image/*"
-                    onChange={(e) => setFingerprintFile(e.target.files?.[0] || null)}
+                    accept="image/jpeg,image/png,image/gif"
+                    onChange={(e) => handleFingerprintFileChange(e.target.files?.[0] || null)}
                   />
                 </Field>
               </div>
@@ -1156,7 +1193,7 @@ function EntryFormPage() {
                   <Button
                     className="gradient-primary"
                     onClick={handleSave}
-                    disabled={saveMutation.isPending || updateMutation.isPending}
+                    disabled={saveMutation.isPending || updateMutation.isPending || !!imageError || !!fingerprintError}
                   >
                     {(saveMutation.isPending || updateMutation.isPending) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-1 h-4 w-4" />}
                     {isEditing ? "Update entry" : "Save entry"}

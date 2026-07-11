@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/toast-error";
 
 export const Route = createFileRoute("/country-list")({
   component: CountryListPage,
@@ -58,7 +59,7 @@ function CountryListPage() {
       queryClient.invalidateQueries({ queryKey: ["countries"] });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to save country.");
+      toastApiError(err, "Failed to save country.");
     },
   });
 
@@ -77,7 +78,7 @@ function CountryListPage() {
       queryClient.invalidateQueries({ queryKey: ["countries"] });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to update country.");
+      toastApiError(err, "Failed to update country.");
     },
   });
 
@@ -93,7 +94,7 @@ function CountryListPage() {
       queryClient.invalidateQueries({ queryKey: ["countries"] });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to delete country.");
+      toastApiError(err, "Failed to delete country.");
     },
   });
 

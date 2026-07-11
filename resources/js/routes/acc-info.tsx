@@ -9,6 +9,10 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/toast-error";
+import { FieldError } from "@/components/ui/field-error";
+import { validateImageFile } from "@/lib/validate-image";
+import { useFieldErrors } from "@/lib/use-field-errors";
 
 export const Route = createFileRoute("/acc-info")({ component: AccInfoPage });
 
@@ -30,9 +34,24 @@ function AccInfoPage() {
   const [mobileNo, setMobileNo] = useState("");
   const [status, setStatus] = useState("1");
 
+  const [imageErrors, setImageErrors] = useState<Record<string, string | null>>({});
+  const { fieldErrors, setFromError, clear } = useFieldErrors();
+
+  const validateAndSetImage = (
+    key: "logo_image" | "signature_physician" | "signature_radiologist" | "signature_authorised",
+    file: File | null,
+    setter: (file: File | null) => void,
+    maxSizeKB: number
+  ) => {
+    const error = validateImageFile(file, { maxSizeKB });
+    setImageErrors((prev) => ({ ...prev, [key]: error }));
+    clear(key);
+    if (!error) setter(file);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setLogoFile(e.target.files[0]);
+      validateAndSetImage("logo_image", e.target.files[0], setLogoFile, 3072);
     }
   };
 
@@ -121,15 +140,20 @@ function AccInfoPage() {
       setPhysicianSigFile(null);
       setRadiologistSigFile(null);
       setAuthorisedSigFile(null);
+      setImageErrors({});
+      setFromError(null);
       // Update locally cached user details
       localStorage.setItem("mediadmin_user", JSON.stringify(data.user));
       queryClient.invalidateQueries({ queryKey: ["currentUserProfile"] });
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to update profile settings.");
+      setFromError(err);
+      toastApiError(err, "Failed to update profile settings.");
     },
   });
+
+  const hasImageErrors = Object.values(imageErrors).some(Boolean);
 
   return (
     <DashboardShell title="Site Settings" subtitle="Manage system user accounts, company profile, and signature configurations.">
@@ -147,28 +171,31 @@ function AccInfoPage() {
                 <Input value={username} disabled className="w-[200px] bg-muted/30 h-9" />
               </div>
               <div className="flex flex-wrap items-center gap-2 mt-auto">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  className="hidden"
-                  onChange={handleFileChange}
-                  accept="image/*"
-                />
-                <Button variant="outline" size="sm" className="h-9" onClick={() => fileInputRef.current?.click()}>
-                  <Upload className="mr-1 h-4 w-4" />Logo Image upload
-                </Button>
-                
-                {user?.logo_path && !logoFile && (
-                  <div className="flex items-center gap-1.5 border border-border bg-muted/20 px-2 py-1 rounded">
-                    <img src={user.logo_path} alt="Company logo" className="h-7 w-7 object-contain rounded" />
-                    <span className="text-[10px] text-muted-foreground font-mono">Current Logo</span>
-                  </div>
-                )}
-                {logoFile && (
-                  <span className="text-xs text-primary bg-primary/10 border border-primary/20 px-2.5 py-1 rounded font-medium">
-                    Selected: {logoFile.name}
-                  </span>
-                )}
+                <div>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={handleFileChange}
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                  />
+                  <Button variant="outline" size="sm" className="h-9" onClick={() => fileInputRef.current?.click()}>
+                    <Upload className="mr-1 h-4 w-4" />Logo Image upload
+                  </Button>
+
+                  {user?.logo_path && !logoFile && (
+                    <div className="mt-1 flex items-center gap-1.5 border border-border bg-muted/20 px-2 py-1 rounded">
+                      <img src={user.logo_path} alt="Company logo" className="h-7 w-7 object-contain rounded" />
+                      <span className="text-[10px] text-muted-foreground font-mono">Current Logo</span>
+                    </div>
+                  )}
+                  {logoFile && (
+                    <span className="mt-1 inline-block text-xs text-primary bg-primary/10 border border-primary/20 px-2.5 py-1 rounded font-medium">
+                      Selected: {logoFile.name}
+                    </span>
+                  )}
+                  <FieldError message={imageErrors.logo_image || fieldErrors.logo_image} />
+                </div>
               </div>
               <Link to="/users" className="ml-auto">
                 <Button className="gradient-primary h-9" size="sm"><Users className="mr-1 h-4 w-4" />All Users</Button>
@@ -274,10 +301,10 @@ function AccInfoPage() {
                       className="hidden"
                       onChange={(e) => {
                         if (e.target.files && e.target.files[0]) {
-                          setPhysicianSigFile(e.target.files[0]);
+                          validateAndSetImage("signature_physician", e.target.files[0], setPhysicianSigFile, 2048);
                         }
                       }}
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
                     />
                     <Button variant="outline" size="sm" className="h-9 w-full" onClick={() => physicianInputRef.current?.click()}>
                       <Upload className="mr-1 h-4 w-4" /> Upload Physician Sig
@@ -293,6 +320,7 @@ function AccInfoPage() {
                         Selected: {physicianSigFile.name}
                       </span>
                     )}
+                    <FieldError message={imageErrors.signature_physician || fieldErrors.signature_physician} />
                   </div>
                 </div>
 
@@ -306,10 +334,10 @@ function AccInfoPage() {
                       className="hidden"
                       onChange={(e) => {
                         if (e.target.files && e.target.files[0]) {
-                          setRadiologistSigFile(e.target.files[0]);
+                          validateAndSetImage("signature_radiologist", e.target.files[0], setRadiologistSigFile, 2048);
                         }
                       }}
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
                     />
                     <Button variant="outline" size="sm" className="h-9 w-full" onClick={() => radiologistInputRef.current?.click()}>
                       <Upload className="mr-1 h-4 w-4" /> Upload Radiologist Sig
@@ -325,6 +353,7 @@ function AccInfoPage() {
                         Selected: {radiologistSigFile.name}
                       </span>
                     )}
+                    <FieldError message={imageErrors.signature_radiologist || fieldErrors.signature_radiologist} />
                   </div>
                 </div>
 
@@ -338,10 +367,10 @@ function AccInfoPage() {
                       className="hidden"
                       onChange={(e) => {
                         if (e.target.files && e.target.files[0]) {
-                          setAuthorisedSigFile(e.target.files[0]);
+                          validateAndSetImage("signature_authorised", e.target.files[0], setAuthorisedSigFile, 2048);
                         }
                       }}
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
                     />
                     <Button variant="outline" size="sm" className="h-9 w-full" onClick={() => authorisedInputRef.current?.click()}>
                       <Upload className="mr-1 h-4 w-4" /> Upload Authorised Sig
@@ -357,6 +386,7 @@ function AccInfoPage() {
                         Selected: {authorisedSigFile.name}
                       </span>
                     )}
+                    <FieldError message={imageErrors.signature_authorised || fieldErrors.signature_authorised} />
                   </div>
                 </div>
               </div>
@@ -366,7 +396,7 @@ function AccInfoPage() {
               <Button
                 className="gradient-primary"
                 onClick={() => updateMutation.mutate()}
-                disabled={updateMutation.isPending}
+                disabled={updateMutation.isPending || hasImageErrors}
               >
                 {updateMutation.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Save className="mr-1 h-4 w-4" />}
                 Save account settings

@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Support\Facades\Storage;
 
 class Patient extends Model
 {
@@ -49,10 +48,7 @@ class Patient extends Model
      */
     public function getImageUrlAttribute(): ?string
     {
-        if (!$this->image_path) {
-            return null;
-        }
-        return '/storage/' . $this->image_path;
+        return $this->image_path;
     }
 
     /**
@@ -61,10 +57,7 @@ class Patient extends Model
      */
     public function getFingerprintUrlAttribute(): ?string
     {
-        if (!$this->fingerprint_path) {
-            return null;
-        }
-        return '/storage/' . $this->fingerprint_path;
+        return $this->fingerprint_path;
     }
 
     // ─── Relationships ───────────────────────────────────────────────────────

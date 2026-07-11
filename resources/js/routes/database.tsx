@@ -11,6 +11,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/toast-error";
 
 export const Route = createFileRoute("/database")({
   component: DatabasePage,
@@ -66,7 +67,7 @@ function DatabasePage() {
       queryClient.invalidateQueries({ queryKey: ["patients"] });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to delete patient.");
+      toastApiError(err, "Failed to delete patient.");
     },
   });
 

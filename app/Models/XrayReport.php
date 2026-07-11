@@ -26,10 +26,7 @@ class XrayReport extends Model
      */
     public function getImageUrlAttribute(): ?string
     {
-        if (!$this->image_path) {
-            return null;
-        }
-        return '/storage/' . $this->image_path;
+        return $this->image_path;
     }
 
     // ─── Relationships ───────────────────────────────────────────────────────

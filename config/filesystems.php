@@ -33,7 +33,14 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Left off intentionally: Laravel's built-in local-disk-serving
+            // registers a GET /storage/{path} route via an app->booted()
+            // callback (Illuminate\Filesystem\FilesystemServiceProvider),
+            // which is added to the route table AFTER routes/web.php loads.
+            // RouteCollection keys routes by method+URI, so that later
+            // registration silently overwrites our own explicit
+            // /storage/{path} fallback route in web.php (see its docblock)
+            // — leaving 'serve' off here is what lets our route win.
             'throw' => false,
             'report' => false,
         ],

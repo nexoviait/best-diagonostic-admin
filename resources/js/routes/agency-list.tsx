@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/toast-error";
 
 export const Route = createFileRoute("/agency-list")({ component: AgencyListPage });
 
@@ -69,7 +70,7 @@ function AgencyListPage() {
       queryClient.invalidateQueries({ queryKey: ["agencies"] });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to add agency.");
+      toastApiError(err, "Failed to add agency.");
     },
   });
 
@@ -95,7 +96,7 @@ function AgencyListPage() {
       queryClient.invalidateQueries({ queryKey: ["agencies"] });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to update agency.");
+      toastApiError(err, "Failed to update agency.");
     },
   });
 
@@ -111,7 +112,7 @@ function AgencyListPage() {
       queryClient.invalidateQueries({ queryKey: ["agencies"] });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to delete agency.");
+      toastApiError(err, "Failed to delete agency.");
     },
   });
 

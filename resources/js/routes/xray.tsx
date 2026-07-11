@@ -10,7 +10,11 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/toast-error";
 import { DatePicker } from "@/components/ui/date-picker";
+import { FieldError } from "@/components/ui/field-error";
+import { validateImageFile } from "@/lib/validate-image";
+import { useFieldErrors } from "@/lib/use-field-errors";
 
 export const Route = createFileRoute("/xray")({ component: XrayPage });
 
@@ -25,6 +29,14 @@ function XrayPage() {
   const [findings, setFindings] = useState("");
   const [result, setResult] = useState("Normal");
   const [xrayImageFile, setXrayImageFile] = useState<File | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const { fieldErrors, setFromError, clear } = useFieldErrors();
+
+  const handleXrayImageChange = (file: File | null) => {
+    setXrayImageFile(file);
+    setImageError(validateImageFile(file, { maxSizeKB: 2048 }));
+    clear("xray_image");
+  };
 
   const { data: user } = useQuery<any>({
     queryKey: ["currentUserProfile"],
@@ -59,7 +71,7 @@ function XrayPage() {
           toast.success("Patient details loaded successfully.");
         } catch (err: any) {
           console.error(err);
-          toast.error(err.message || "Patient not found.");
+          toastApiError(err, "Patient not found.");
         } finally {
           setLoading(false);
         }
@@ -93,7 +105,7 @@ function XrayPage() {
       }
       toast.success("Patient details loaded successfully.");
     } catch (err: any) {
-      toast.error(err.message || "Patient not found.");
+      toastApiError(err, "Patient not found.");
       setPatient(null);
     } finally {
       setLoading(false);
@@ -102,6 +114,12 @@ function XrayPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const validationError = validateImageFile(xrayImageFile, { maxSizeKB: 2048 });
+      if (validationError) {
+        setImageError(validationError);
+        throw new Error(validationError);
+      }
+
       const formData = new FormData();
       formData.append("patient_id", patient.id);
       formData.append("date", date);
@@ -119,9 +137,17 @@ function XrayPage() {
     },
     onSuccess: () => {
       toast.success("X-Ray report saved successfully!");
+      setFromError(null);
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to save X-Ray report.");
+      setFromError(err);
+      // Backend rejects the image itself (bad type/size/corrupt file) via
+      // the 'xray_image' validation key — surface it under the field too,
+      // not just as a toast.
+      if (err?.fields?.xray_image) {
+        setImageError(err.fields.xray_image);
+      }
+      toastApiError(err, "Failed to save X-Ray report.");
     }
   });
 
@@ -186,10 +212,11 @@ function XrayPage() {
                 <div className="mt-1 flex items-center gap-2">
                   <Input
                     type="file"
-                    accept="image/*"
-                    onChange={(e) => setXrayImageFile(e.target.files?.[0] || null)}
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    onChange={(e) => handleXrayImageChange(e.target.files?.[0] || null)}
                   />
                 </div>
+                <FieldError message={imageError || fieldErrors.xray_image} />
               </div>
             </div>
 
@@ -198,7 +225,7 @@ function XrayPage() {
                 <Button
                   className="gradient-primary"
                   onClick={() => saveMutation.mutate()}
-                  disabled={saveMutation.isPending}
+                  disabled={saveMutation.isPending || !!imageError}
                 >
                   {saveMutation.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Save className="mr-1 h-4 w-4" />}
                   Save

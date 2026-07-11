@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/toast-error";
 
 export const Route = createFileRoute("/password")({ component: PasswordPage });
 
@@ -37,7 +38,7 @@ function PasswordPage() {
       setConfirmPassword("");
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to update password.");
+      toastApiError(err, "Failed to update password.");
     },
   });
 

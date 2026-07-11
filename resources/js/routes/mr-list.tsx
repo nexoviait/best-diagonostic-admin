@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/toast-error";
 
 export const Route = createFileRoute("/mr-list")({ component: MrListPage });
 
@@ -65,7 +66,7 @@ function MrListPage() {
       queryClient.invalidateQueries({ queryKey: ["mrs"] });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to save MR.");
+      toastApiError(err, "Failed to save MR.");
     },
   });
 
@@ -89,7 +90,7 @@ function MrListPage() {
       queryClient.invalidateQueries({ queryKey: ["mrs"] });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to update MR.");
+      toastApiError(err, "Failed to update MR.");
     },
   });
 
@@ -105,7 +106,7 @@ function MrListPage() {
       queryClient.invalidateQueries({ queryKey: ["mrs"] });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to delete MR.");
+      toastApiError(err, "Failed to delete MR.");
     },
   });
 

@@ -9,6 +9,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/toast-error";
 import JsBarcode from "jsbarcode";
 
 interface MedicalReportFormProps {
@@ -281,7 +282,7 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
       loadPatientData(pData);
       toast.success("Patient details loaded successfully.");
     } catch (err: any) {
-      toast.error(err.message || "Patient not found.");
+      toastApiError(err, "Patient not found.");
       setPatient(null);
     } finally {
       setLoading(false);
@@ -789,7 +790,7 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
       queryClient.invalidateQueries({ queryKey: ["patients-list-all"] });
     },
     onError: (err: any) => {
-      toast.error(err.message || "Failed to save medical report.");
+      toastApiError(err, "Failed to save medical report.");
     }
   });
 

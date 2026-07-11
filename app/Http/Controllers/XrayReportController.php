@@ -6,9 +6,13 @@ use App\Models\XrayReport;
 use App\Models\Patient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use App\Traits\StoresPublicUploads;
 
 class XrayReportController extends Controller
 {
+    use StoresPublicUploads;
+
+
     public function show($patient_id_or_pax_id)
     {
         $patient = Patient::where('id', $patient_id_or_pax_id)
@@ -56,7 +60,7 @@ class XrayReportController extends Controller
 
         $imagePath = null;
         if ($request->hasFile('xray_image')) {
-            $imagePath = $request->file('xray_image')->store('xrays', 'public');
+            $imagePath = $this->storePublicUpload($request->file('xray_image'), 'xrays', 'xray');
         }
 
         $updateData = array_filter([

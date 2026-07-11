@@ -17,11 +17,38 @@ import {
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { apiRequest, getUser } from "@/lib/api";
 
 export const Route = createFileRoute("/")({
   component: Overview,
 });
+
+// Boundaries are in local-machine hours (Date#getHours already reflects the
+// browser's local timezone, so no extra TZ handling is needed here):
+//   05:00–11:59 morning · 12:00–16:59 afternoon · 17:00–20:59 evening · 21:00–04:59 night
+function getGreeting(date: Date): string {
+  const hour = date.getHours();
+  if (hour >= 5 && hour < 12) return "Good morning";
+  if (hour >= 12 && hour < 17) return "Good afternoon";
+  if (hour >= 17 && hour < 21) return "Good evening";
+  return "Good night";
+}
+
+// Recomputed every minute so the greeting flips to the next period live
+// (e.g. 11:59 -> 12:00) without requiring a page refresh.
+function useGreeting(): string {
+  const [greeting, setGreeting] = useState(() => getGreeting(new Date()));
+
+  useEffect(() => {
+    const tick = () => setGreeting(getGreeting(new Date()));
+    tick();
+    const interval = setInterval(tick, 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return greeting;
+}
 
 const statusStyles: Record<string, string> = {
   Fit: "bg-success/15 text-success border-success/30",
@@ -39,6 +66,7 @@ const quickLinks = [
 function Overview() {
   const user = getUser();
   const userName = user?.name || "Dr. Tahsin";
+  const greeting = useGreeting();
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ["dashboardStats"],
@@ -58,12 +86,7 @@ function Overview() {
               Today · {new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })}
             </Badge>
             <h2 className="font-display text-2xl font-semibold tracking-tight md:text-3xl">
-              {(() => {
-                const hour = new Date().getHours();
-                if (hour < 12) return "Good morning";
-                if (hour < 18) return "Good afternoon";
-                return "Good evening";
-              })()}, {userName}.
+              {greeting}, {userName}.
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
               Manage patient entries, medical reports, X-rays and partner accounts in one clean console.
