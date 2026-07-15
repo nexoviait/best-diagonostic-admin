@@ -111,6 +111,12 @@ class AuthController extends Controller
         /** @var User $user */
         $user = Auth::guard('api')->user();
 
+        // An empty string means "clear the window / no limit" — normalize to null so the
+        // integer rule below doesn't reject it (API middleware doesn't auto-convert "" -> null).
+        if ($request->input('payment_edit_window_minutes') === '') {
+            $request->merge(['payment_edit_window_minutes' => null]);
+        }
+
         $validator = Validator::make($request->all(), [
             'name'                  => 'sometimes|string|max:255',
             'email'                 => 'sometimes|string|email|max:255|unique:users,email,' . $user->id,
@@ -132,6 +138,11 @@ class AuthController extends Controller
             'signature_physician'   => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'signature_radiologist' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'signature_authorised'  => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'report_header_image'   => 'nullable|image|mimes:jpeg,png,jpg|max:3072',
+            'report_footer_image'   => 'nullable|image|mimes:jpeg,png,jpg|max:3072',
+            'remove_report_header_image' => 'nullable|boolean',
+            'remove_report_footer_image' => 'nullable|boolean',
+            'payment_edit_window_minutes' => 'nullable|integer|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -143,17 +154,19 @@ class AuthController extends Controller
             'name', 'email', 'username', 'mobile_no',
             'company_name_en', 'company_name_en_title', 'company_address_en', 'company_phone_en', 'company_pax_en',
             'company_name_bn', 'company_name_bn_title', 'company_address_bn', 'company_phone_bn', 'company_pax_bn',
-            'status',
+            'status', 'payment_edit_window_minutes',
         ];
         $data = $validator->validated();
         $updates = array_intersect_key($data, array_flip($allowedFields));
 
         // Process file uploads — sanitize filenames to prevent path traversal
         $fileFields = [
-            'logo_image'            => ['dest' => public_path('uploads/company'),     'column' => 'logo_path',                  'prefix' => 'logo'],
-            'signature_physician'   => ['dest' => public_path('uploads/signatures'),  'column' => 'signature_physician_path',   'prefix' => 'physician'],
-            'signature_radiologist' => ['dest' => public_path('uploads/signatures'),  'column' => 'signature_radiologist_path', 'prefix' => 'radiologist'],
-            'signature_authorised'  => ['dest' => public_path('uploads/signatures'),  'column' => 'signature_authorised_path',  'prefix' => 'authorised'],
+            'logo_image'            => ['rel' => 'uploads/company',    'column' => 'logo_path',                    'prefix' => 'logo'],
+            'signature_physician'   => ['rel' => 'uploads/signatures', 'column' => 'signature_physician_path',     'prefix' => 'physician'],
+            'signature_radiologist' => ['rel' => 'uploads/signatures', 'column' => 'signature_radiologist_path',   'prefix' => 'radiologist'],
+            'signature_authorised'  => ['rel' => 'uploads/signatures', 'column' => 'signature_authorised_path',    'prefix' => 'authorised'],
+            'report_header_image'   => ['rel' => 'uploads/reports',    'column' => 'report_header_image_path',     'prefix' => 'header'],
+            'report_footer_image'   => ['rel' => 'uploads/reports',    'column' => 'report_footer_image_path',     'prefix' => 'footer'],
         ];
 
         foreach ($fileFields as $inputName => $config) {
@@ -162,7 +175,7 @@ class AuthController extends Controller
                 $ext       = $file->getClientOriginalExtension();
                 // SECURITY: sanitize filename — no original client filename, use prefix + timestamp + random string
                 $safeName  = $config['prefix'] . '_' . time() . '_' . Str::random(8) . '.' . $ext;
-                $dir       = $config['dest'];
+                $dir       = public_path($config['rel']);
 
                 if (!is_dir($dir)) {
                     mkdir($dir, 0755, true);
@@ -170,8 +183,25 @@ class AuthController extends Controller
 
                 $file->move($dir, $safeName);
 
-                $subDir = str_contains($dir, 'signatures') ? 'uploads/signatures/' : 'uploads/company/';
-                $updates[$config['column']] = '/' . $subDir . $safeName;
+                $updates[$config['column']] = '/' . $config['rel'] . '/' . $safeName;
+            }
+        }
+
+        // Remove header/footer images — only applies when no replacement file was uploaded above
+        $removableFields = [
+            'remove_report_header_image' => 'report_header_image_path',
+            'remove_report_footer_image' => 'report_footer_image_path',
+        ];
+        foreach ($removableFields as $flag => $column) {
+            if ($request->boolean($flag) && !isset($updates[$column])) {
+                $existingPath = $user->{$column};
+                if ($existingPath) {
+                    $absolutePath = public_path(ltrim($existingPath, '/'));
+                    if (is_file($absolutePath)) {
+                        @unlink($absolutePath);
+                    }
+                }
+                $updates[$column] = null;
             }
         }
 

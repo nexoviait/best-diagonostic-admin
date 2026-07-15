@@ -43,6 +43,9 @@ class User extends Authenticatable implements JWTSubject
         'signature_physician_path',
         'signature_radiologist_path',
         'signature_authorised_path',
+        'report_header_image_path',
+        'report_footer_image_path',
+        'payment_edit_window_minutes',
     ];
 
     /**

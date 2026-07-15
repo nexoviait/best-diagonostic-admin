@@ -29,6 +29,7 @@ const PERMISSION_GROUPS = [
       { id: "edit_patient", label: "Edit Patient" },
       { id: "delete_patient", label: "Delete Patient" },
       { id: "print_patient_card", label: "Print Patient Card" },
+      { id: "edit_payment", label: "Edit Payment" },
     ]
   },
   {

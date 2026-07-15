@@ -11,6 +11,7 @@ use App\Models\Mr;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 use App\Models\User;
 use App\Traits\StoresPublicUploads;
@@ -41,6 +42,9 @@ class PatientController extends Controller
             'signature_physician_path' => $admin->signature_physician_path,
             'signature_radiologist_path' => $admin->signature_radiologist_path,
             'signature_authorised_path' => $admin->signature_authorised_path,
+            'report_header_image_path' => $admin->report_header_image_path,
+            'report_footer_image_path' => $admin->report_footer_image_path,
+            'payment_edit_window_minutes' => $admin->payment_edit_window_minutes,
         ]);
     }
 
@@ -172,6 +176,10 @@ class PatientController extends Controller
             'due_amount' => 'nullable|numeric',
             'niddle_charge' => 'nullable|numeric',
             'in_words' => 'nullable|string',
+        ], [], [
+            'country_id' => 'country',
+            'agency_id' => 'agency',
+            'mr_id' => 'MR',
         ]);
 
         if ($validator->fails()) {
@@ -262,9 +270,9 @@ class PatientController extends Controller
 
         $validator = Validator::make($request->all(), [
             'date' => 'nullable|string',
-            'country_id' => 'exists:countries,id',
+            'country_id' => 'required|exists:countries,id',
             'nationality' => 'nullable|string',
-            'first_name' => 'string|max:100',
+            'first_name' => 'required|string|max:100',
             'last_name' => 'nullable|string|max:100',
             'father_name' => 'nullable|string',
             'mother_name' => 'nullable|string',
@@ -275,18 +283,54 @@ class PatientController extends Controller
             'visa_no' => 'nullable|string',
             'issue_date' => 'nullable|string',
             'job_applied' => 'nullable|string',
-            'agency_id' => 'exists:agencies,id',
-            'mr_id' => 'exists:mrs,id',
+            'agency_id' => 'required|exists:agencies,id',
+            'mr_id' => 'required|exists:mrs,id',
             'medical_fee' => 'numeric',
             'received_amount' => 'numeric',
             'niddle_charge' => 'numeric',
             'in_words' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'fingerprint' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ], [], [
+            'country_id' => 'country',
+            'agency_id' => 'agency',
+            'mr_id' => 'MR',
         ]);
 
         if ($validator->fails()) {
             return response()->json($validator->errors(), 422);
+        }
+
+        $validated = $validator->validated();
+
+        // SECURITY: payment fields have their own authorization gate, independent of general
+        // patient-edit access — a plain permission check alone isn't enough since a user could
+        // otherwise keep editing payment indefinitely, so admins can also cap it to a time window
+        // measured from patient creation. Superadmin/Admin always bypass this.
+        $paymentChanged = (array_key_exists('medical_fee', $validated) && (float) $validated['medical_fee'] !== (float) $patient->medical_fee)
+            || (array_key_exists('received_amount', $validated) && (float) $validated['received_amount'] !== (float) $patient->received_amount)
+            || (array_key_exists('niddle_charge', $validated) && (float) $validated['niddle_charge'] !== (float) $patient->niddle_charge)
+            || (array_key_exists('in_words', $validated) && (string) $validated['in_words'] !== (string) $patient->in_words);
+
+        if ($paymentChanged) {
+            $actor = Auth::guard('api')->user();
+            $isSuperadmin = $actor && ($actor->role === 'Admin' || $actor->role_name === 'Superadmin');
+
+            if (!$isSuperadmin) {
+                $permissions = $actor ? ($actor->permissions ?? []) : [];
+                if (!in_array('edit_payment', $permissions, true)) {
+                    return response()->json(['error' => 'You do not have permission to edit payment fields.'], 403);
+                }
+
+                $admin = User::where('role', 'Admin')->first();
+                $windowMinutes = $admin?->payment_edit_window_minutes;
+                if ($windowMinutes !== null && $patient->created_at) {
+                    $deadline = $patient->created_at->copy()->addMinutes((int) $windowMinutes);
+                    if (now()->greaterThan($deadline)) {
+                        return response()->json(['error' => 'The payment edit time limit has expired for this entry.'], 403);
+                    }
+                }
+            }
         }
 
         // Handle Image upload if any
@@ -304,7 +348,7 @@ class PatientController extends Controller
         $due = $fee - $received;
 
         $patient->update(array_merge(
-            $validator->validated(),
+            $validated,
             [
                 'due_amount' => $due,
             ]

@@ -597,6 +597,124 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
         </body>
         </html>
       `;
+    } else if (type === "Invoice Zero") {
+      html = `
+        <html>
+        <head>
+          <title>Invoice Zero - ${patient.pax_id}</title>
+          <style>
+            body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; color: #0f172a; background: #fff; }
+            .header { display: flex; justify-content: space-between; align-items: start; border-bottom: 2px solid #e2e8f0; padding-bottom: 16px; margin-bottom: 24px; gap: 16px; }
+            .header h2 { margin: 0; font-size: 20px; font-weight: bold; color: oklch(0.58 0.14 180); }
+            .header p { margin: 4px 0 0; font-size: 12px; color: #64748b; }
+            .report-title-section { text-align: right; display: flex; flex-direction: column; align-items: end; }
+            .report-title-section h3 { margin: 0; font-size: 14px; font-weight: bold; letter-spacing: 0.05em; color: #0f172a; }
+            .report-title-section p { margin: 4px 0 0; font-size: 12px; font-family: monospace; color: #64748b; }
+            .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; font-size: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 16px; margin-bottom: 24px; }
+            .meta-column p { margin: 6px 0; }
+            .label { color: #64748b; }
+            .value { font-weight: 600; }
+            table { width: 100%; border-collapse: collapse; margin-top: 24px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+            th, td { padding: 10px 16px; }
+            th { background-color: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0; color: #475569; text-align: left; }
+            td { border-bottom: 1px solid #f1f5f9; text-align: left; }
+            .text-right { text-align: right; }
+            tr:last-child td { border-bottom: none; }
+            .total-row { font-weight: 600; background-color: #f8fafc; border-top: 1px solid #e2e8f0; }
+            .success-row { font-weight: 600; color: rgb(22, 163, 74); }
+            .normal-row { font-weight: 600; color: #64748b; }
+            .in-words-section { font-size: 12px; margin-top: 16px; font-style: italic; }
+            .in-words-section span { font-style: normal; color: #64748b; }
+            .footer-section { display: flex; justify-content: space-between; align-items: end; margin-top: 64px; }
+            .signature { text-align: center; border-top: 1px solid #cbd5e1; width: 160px; padding-top: 6px; font-size: 10px; color: #64748b; }
+          </style>
+          <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+        </head>
+        <body onload="initBarcode()">
+          <div class="header">
+            <div style="flex: 1;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                <img src="${user?.logo_path || "/assets/images/best-logo.png"}" style="height: 36px; object-fit: contain;" />
+                <span style="font-weight: bold; font-size: 16px; color: #0d9488;">${user?.company_name_en || "Best Health Diagnostic & Medical Center"}</span>
+              </div>
+              <p>${user?.company_address_en || "1/A DIT Extension Road, Fakirapool, Dhaka-1000"}</p>
+            </div>
+            <div class="report-title-section" style="display: flex; flex-direction: column; align-items: flex-end; shrink-0;">
+              <h3>MONEY RECEIPT</h3>
+              <p style="margin-bottom: 6px; margin-top: 4px; font-size: 12px; color: #64748b;">Receipt Date: ${patient.date}</p>
+              <svg id="receipt-barcode"></svg>
+            </div>
+            <img src="${patient.image_url || patient.image_path || '/assets/images/best-logo.png'}" onerror="this.src='/assets/images/best-logo.png'" style="width: 64px; height: 80px; object-fit: cover; border: 1px solid #e2e8f0; border-radius: 4px; shrink-0;" />
+          </div>
+          <div class="meta-grid">
+            <div class="meta-column">
+              <p><span class="label">Patient Name:</span> <span class="value">${patient.first_name} ${patient.last_name || ''}</span></p>
+              <p><span class="label">Patient ID:</span> <span class="value" style="font-family: monospace;">${patient.pax_id}</span></p>
+              <p><span class="label">Passport No:</span> <span class="value" style="font-family: monospace;">${patient.passport_no || 'N/A'}</span></p>
+            </div>
+            <div class="meta-column">
+              <p><span class="label">Receipt No:</span> <span class="value">REC-${patient.pax_id}</span></p>
+              <p><span class="label">Agency:</span> <span class="value">${patient.agency?.name || 'N/A'}</span></p>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th class="text-right">Amount (৳)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Medical Check-up Registration & Report fee</td>
+                <td class="text-right">0</td>
+              </tr>
+              <tr class="total-row">
+                <td>Total Amount Due</td>
+                <td class="text-right">0</td>
+              </tr>
+              <tr class="success-row">
+                <td>Amount Paid</td>
+                <td class="text-right">0</td>
+              </tr>
+              <tr class="normal-row">
+                <td>Due Balance</td>
+                <td class="text-right">0</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="in-words-section">
+            <span>In Words:</span> Zero Taka Only
+          </div>
+          <div class="footer-section">
+            ${user?.signature_authorised_path ? 
+              `<div class="signature" style="border-top: none; margin-left: auto;"><img src="${user.signature_authorised_path}" style="height: 36px; object-fit: contain; display: block; margin: 0 auto 4px auto;" />Operator / Cashier</div>` : 
+              `<div class="signature" style="margin-left: auto;">Operator / Cashier</div>`
+            }
+          </div>
+          <script>
+            function initBarcode() {
+              try {
+                JsBarcode('#receipt-barcode', '${patient.pax_id}', {
+                  format: 'CODE128',
+                  width: 1.5,
+                  height: 30,
+                  displayValue: true,
+                  fontSize: 10,
+                  margin: 0
+                });
+              } catch(e) {
+                console.error(e);
+              }
+              setTimeout(function() {
+                window.print();
+                window.close();
+              }, 300);
+            }
+          </script>
+        </body>
+        </html>
+      `;
     } else if (type === "Label Print") {
       const paxId = patient.pax_id;
       const name = `${patient.first_name} ${patient.last_name || ''}`.toUpperCase().trim();
@@ -874,6 +992,14 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
                   >
                     <FileText className="mr-2 h-4 w-4" />
                     Money Receipt
+                  </Button>
+                  <Button
+                    variant={activeTab === "Invoice Zero" ? "default" : "ghost"}
+                    className={`w-full justify-start ${activeTab === "Invoice Zero" ? "gradient-primary text-white" : ""}`}
+                    onClick={() => setActiveTab("Invoice Zero")}
+                  >
+                    <FileText className="mr-2 h-4 w-4" />
+                    Money Receipt Zero
                   </Button>
                   <Button
                     variant={activeTab === "Label Print" ? "default" : "ghost"}
@@ -1444,6 +1570,79 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
                 <div className="text-[11px] text-slate-500 italic">
                   <span>In Words: </span>
                   <span>{patient.in_words || "N/A"}</span>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 5.5: Invoice Zero receipt template */}
+            {activeTab === "Invoice Zero" && (
+              <div className="p-4 bg-white text-slate-900 border border-slate-200 rounded-xl space-y-6 font-sans">
+                <div className="flex justify-between items-start border-b border-slate-200 pb-4 gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <img src={user?.logo_path || "/assets/images/best-logo.png"} alt="Logo" className="h-9 object-contain" />
+                      <span className="font-bold text-sm text-primary">{user?.company_name_en || "Best Health Diagnostic & Medical Center"}</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">{user?.company_address_en || "1/A DIT Extension Road, Fakirapool, Dhaka-1000"}</p>
+                  </div>
+                  <div className="text-right text-xs flex flex-col items-end gap-1 shrink-0">
+                    <h3 className="font-bold text-sm">MONEY RECEIPT</h3>
+                    <p className="font-mono text-xs text-slate-500 mb-1">Receipt Date: {patient.date}</p>
+                    <BarcodePreview value={patient.pax_id} displayValue={true} height={30} />
+                  </div>
+                  <div className="w-16 h-20 border border-slate-200 rounded overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
+                    {patient.image_url ? (
+                      <img src={patient.image_url} alt="Photo" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-[8px] text-slate-400">NO PHOTO</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-xs border-b border-slate-100 pb-4">
+                  <div>
+                    <p><span className="text-slate-500">Patient Name:</span> <span className="font-semibold">{patient.first_name} {patient.last_name || ""}</span></p>
+                    <p><span className="text-slate-500">Patient ID:</span> <span className="font-mono font-semibold">{patient.pax_id}</span></p>
+                    <p><span className="text-slate-500">Passport No:</span> <span className="font-mono font-semibold">{patient.passport_no || "N/A"}</span></p>
+                  </div>
+                  <div>
+                    <p><span className="text-slate-500">Receipt No:</span> <span className="font-mono font-semibold">REC-{patient.pax_id}</span></p>
+                    <p><span className="text-slate-500">Agency:</span> <span>{patient.agency?.name || "N/A"}</span></p>
+                  </div>
+                </div>
+
+                <div className="border border-slate-200 rounded-lg overflow-hidden text-xs">
+                  <table className="w-full">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-left">
+                      <tr>
+                        <th className="px-4 py-2 font-semibold">Description</th>
+                        <th className="px-4 py-2 text-right font-semibold">Amount (৳)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      <tr>
+                        <td className="px-4 py-2">Medical Check-up Registration & Report fee</td>
+                        <td className="px-4 py-2 text-right">0</td>
+                      </tr>
+                      <tr className="bg-slate-50/50 font-semibold">
+                        <td className="px-4 py-2">Total Amount Due</td>
+                        <td className="px-4 py-2 text-right">0</td>
+                      </tr>
+                      <tr className="text-success font-semibold">
+                        <td className="px-4 py-2">Amount Paid</td>
+                        <td className="px-4 py-2 text-right">0</td>
+                      </tr>
+                      <tr className="text-slate-500 font-semibold">
+                        <td className="px-4 py-2">Due Balance</td>
+                        <td className="px-4 py-2 text-right">0</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="text-[11px] text-slate-500 italic">
+                  <span>In Words: </span>
+                  <span>Zero Taka Only</span>
                 </div>
               </div>
             )}

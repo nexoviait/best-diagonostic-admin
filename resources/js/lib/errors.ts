@@ -62,7 +62,7 @@ export function friendlyMessage(err: unknown): string {
       case 'session_expired':
         return 'Your session has expired. Please sign in again.';
       case 'forbidden':
-        return "You don't have permission to perform this action.";
+        return err.message || "You don't have permission to perform this action.";
       case 'not_found':
         return 'The requested item could not be found.';
       case 'rate_limited':
