@@ -19,6 +19,7 @@ const PERMISSION_GROUPS = [
     permissions: [
       { id: "view_dashboard", label: "View Dashboard" },
       { id: "manage_settings", label: "Manage Site Settings" },
+      { id: "view_reports", label: "View Admin Reports" },
     ]
   },
   {

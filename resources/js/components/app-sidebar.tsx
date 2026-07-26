@@ -15,6 +15,7 @@ import {
   Stethoscope,
   Search,
   ShieldCheck,
+  BarChart3,
 } from "lucide-react";
 import {
   Sidebar,
@@ -51,6 +52,7 @@ const management = [
 ];
 
 const account = [
+  { title: "Admin Report", url: "/admin-report", icon: BarChart3 },
   { title: "Site Settings", url: "/acc-info", icon: UserCog },
   { title: "Password", url: "/password", icon: KeyRound },
   { title: "Users", url: "/users", icon: Users },
@@ -112,6 +114,7 @@ export function AppSidebar() {
       if (item.url === '/users') return perms.includes('manage_users');
       if (item.url === '/roles') return perms.includes('manage_roles');
       if (item.url === '/acc-info') return perms.includes('manage_settings');
+      if (item.url === '/admin-report') return perms.includes('view_reports');
       if (item.url === '/password') return true; // Everyone can change their password
 
       return false; // Hide by default if not matched

@@ -33,6 +33,7 @@ Route::get('public/site-settings', [PatientController::class, 'getPublicSettings
 // ─── Protected Routes (any authenticated user) ───────────────────────────────
 Route::middleware('auth:api')->group(function () {
     Route::get('dashboard', [PatientController::class, 'dashboardStats']);
+    Route::get('reports/summary', [\App\Http\Controllers\ReportController::class, 'summary']);
 
     // Reference data (read-accessible to all roles)
     Route::apiResource('countries', CountryController::class);

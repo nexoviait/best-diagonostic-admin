@@ -73,7 +73,7 @@ return new class extends Migration
             $table->string('hiv_antibody')->default('Negative');
             $table->string('hbsag')->default('Negative');
             $table->string('hcv')->default('Negative');
-            $table->string('malaria')->default('Negative');
+            $table->string('malaria')->default('N/A');
             $table->string('tpha')->default('Negative');
             $table->string('tb')->default('Negative');
             $table->string('filariasis')->default('Negative');

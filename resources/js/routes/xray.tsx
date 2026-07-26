@@ -155,7 +155,8 @@ function XrayPage() {
     <DashboardShell title="X-Ray Upload" subtitle="Attach and report X-Ray findings to a patient.">
       <div className="card-surface p-6 space-y-6">
         <div className="flex flex-col gap-4 border-b border-border/60 pb-5 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
-          <div className="w-full sm:w-auto">
+          <h3 className="font-display text-lg font-semibold">X-Ray Report Entry</h3>
+          <div className="w-full sm:w-auto sm:ml-auto">
             <Label className="text-xs">Search Patient by ID</Label>
             <div className="mt-1 flex flex-col gap-2 sm:flex-row">
               <Input
@@ -171,7 +172,6 @@ function XrayPage() {
               </Button>
             </div>
           </div>
-          <h3 className="font-display text-lg font-semibold sm:ml-auto">X-Ray Report Entry</h3>
         </div>
 
         {patient && (

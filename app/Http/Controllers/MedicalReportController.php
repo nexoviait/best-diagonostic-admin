@@ -101,6 +101,8 @@ class MedicalReportController extends Controller
             'dop_amp' => 'nullable|string',
             'info' => 'nullable|string',
             'on_line' => 'nullable|string',
+            'varicose_veins' => 'nullable|string',
+            'psychiatry' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {

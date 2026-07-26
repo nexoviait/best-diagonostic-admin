@@ -47,8 +47,16 @@ function DatabasePage() {
   const [searchField, setSearchField] = useState("pax");
   const [searchValue, setSearchValue] = useState("");
 
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const getTodayDate = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const [dateFrom, setDateFrom] = useState(getTodayDate);
+  const [dateTo, setDateTo] = useState(getTodayDate);
 
   const [agencyId, setAgencyId] = useState("all");
   const [mrId, setMrId] = useState("all");

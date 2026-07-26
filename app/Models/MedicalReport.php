@@ -76,6 +76,8 @@ class MedicalReport extends Model
         'dop_amp',
         'info',
         'on_line',
+        'varicose_veins',
+        'psychiatry',
     ];
 
     // ─── Relationships ───────────────────────────────────────────────────────

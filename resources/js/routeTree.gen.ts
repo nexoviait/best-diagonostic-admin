@@ -24,6 +24,7 @@ import { Route as DatabaseRouteImport } from './routes/database'
 import { Route as CountryListRouteImport } from './routes/country-list'
 import { Route as AgencyListRouteImport } from './routes/agency-list'
 import { Route as AgencyBalanceRouteImport } from './routes/agency-balance'
+import { Route as AdminReportRouteImport } from './routes/admin-report'
 import { Route as AccInfoRouteImport } from './routes/acc-info'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -102,6 +103,11 @@ const AgencyBalanceRoute = AgencyBalanceRouteImport.update({
   path: '/agency-balance',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminReportRoute = AdminReportRouteImport.update({
+  id: '/admin-report',
+  path: '/admin-report',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AccInfoRoute = AccInfoRouteImport.update({
   id: '/acc-info',
   path: '/acc-info',
@@ -116,6 +122,7 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/acc-info': typeof AccInfoRoute
+  '/admin-report': typeof AdminReportRoute
   '/agency-balance': typeof AgencyBalanceRoute
   '/agency-list': typeof AgencyListRoute
   '/country-list': typeof CountryListRoute
@@ -135,6 +142,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/acc-info': typeof AccInfoRoute
+  '/admin-report': typeof AdminReportRoute
   '/agency-balance': typeof AgencyBalanceRoute
   '/agency-list': typeof AgencyListRoute
   '/country-list': typeof CountryListRoute
@@ -155,6 +163,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/acc-info': typeof AccInfoRoute
+  '/admin-report': typeof AdminReportRoute
   '/agency-balance': typeof AgencyBalanceRoute
   '/agency-list': typeof AgencyListRoute
   '/country-list': typeof CountryListRoute
@@ -176,6 +185,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/acc-info'
+    | '/admin-report'
     | '/agency-balance'
     | '/agency-list'
     | '/country-list'
@@ -195,6 +205,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/acc-info'
+    | '/admin-report'
     | '/agency-balance'
     | '/agency-list'
     | '/country-list'
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/acc-info'
+    | '/admin-report'
     | '/agency-balance'
     | '/agency-list'
     | '/country-list'
@@ -234,6 +246,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccInfoRoute: typeof AccInfoRoute
+  AdminReportRoute: typeof AdminReportRoute
   AgencyBalanceRoute: typeof AgencyBalanceRoute
   AgencyListRoute: typeof AgencyListRoute
   CountryListRoute: typeof CountryListRoute
@@ -358,6 +371,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AgencyBalanceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin-report': {
+      id: '/admin-report'
+      path: '/admin-report'
+      fullPath: '/admin-report'
+      preLoaderRoute: typeof AdminReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/acc-info': {
       id: '/acc-info'
       path: '/acc-info'
@@ -378,6 +398,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccInfoRoute: AccInfoRoute,
+  AdminReportRoute: AdminReportRoute,
   AgencyBalanceRoute: AgencyBalanceRoute,
   AgencyListRoute: AgencyListRoute,
   CountryListRoute: CountryListRoute,
