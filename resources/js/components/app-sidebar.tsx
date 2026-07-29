@@ -4,6 +4,7 @@ import {
   Database,
   FileText,
   ClipboardList,
+  ClipboardCheck,
   ScanLine,
   Users,
   Building2,
@@ -38,6 +39,7 @@ const primary = [
   { title: "Overview", url: "/", icon: LayoutDashboard },
   { title: "Database", url: "/database", icon: Database },
   { title: "Entry Form", url: "/entry-form", icon: FileText },
+  { title: "My Entries", url: "/my-entries", icon: ClipboardCheck },
   { title: "Report Entry", url: "/report-entry", icon: ClipboardList },
   { title: "Malaysia Report", url: "/malaysia-report", icon: Stethoscope },
   { title: "X-Ray Upload", url: "/xray", icon: ScanLine },
@@ -103,6 +105,7 @@ export function AppSidebar() {
       if (item.url === '/') return perms.includes('view_dashboard');
       if (item.url === '/database') return perms.includes('view_database');
       if (item.url === '/entry-form') return perms.includes('add_patient');
+      if (item.url === '/my-entries') return perms.includes('add_patient');
       if (item.url === '/report-entry') return perms.includes('edit_report');
       if (item.url === '/malaysia-report') return perms.includes('edit_report');
       if (item.url === '/xray') return perms.includes('upload_xray');

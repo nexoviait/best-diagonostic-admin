@@ -22,3 +22,8 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+/scanner-bridge/build
+/scanner-bridge/dist
+/scanner-bridge/captures
+/scanner-bridge/__pycache__
+/scanner-bridge/*.spec

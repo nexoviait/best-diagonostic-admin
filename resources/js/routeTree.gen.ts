@@ -15,6 +15,7 @@ import { Route as SearchPassportRouteImport } from './routes/search-passport'
 import { Route as RolesRouteImport } from './routes/roles'
 import { Route as ReportEntryRouteImport } from './routes/report-entry'
 import { Route as PasswordRouteImport } from './routes/password'
+import { Route as MyEntriesRouteImport } from './routes/my-entries'
 import { Route as MrListRouteImport } from './routes/mr-list'
 import { Route as MedicalRouteImport } from './routes/medical'
 import { Route as MalaysiaReportRouteImport } from './routes/malaysia-report'
@@ -56,6 +57,11 @@ const ReportEntryRoute = ReportEntryRouteImport.update({
 const PasswordRoute = PasswordRouteImport.update({
   id: '/password',
   path: '/password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyEntriesRoute = MyEntriesRouteImport.update({
+  id: '/my-entries',
+  path: '/my-entries',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MrListRoute = MrListRouteImport.update({
@@ -132,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/malaysia-report': typeof MalaysiaReportRoute
   '/medical': typeof MedicalRoute
   '/mr-list': typeof MrListRoute
+  '/my-entries': typeof MyEntriesRoute
   '/password': typeof PasswordRoute
   '/report-entry': typeof ReportEntryRoute
   '/roles': typeof RolesRoute
@@ -152,6 +159,7 @@ export interface FileRoutesByTo {
   '/malaysia-report': typeof MalaysiaReportRoute
   '/medical': typeof MedicalRoute
   '/mr-list': typeof MrListRoute
+  '/my-entries': typeof MyEntriesRoute
   '/password': typeof PasswordRoute
   '/report-entry': typeof ReportEntryRoute
   '/roles': typeof RolesRoute
@@ -173,6 +181,7 @@ export interface FileRoutesById {
   '/malaysia-report': typeof MalaysiaReportRoute
   '/medical': typeof MedicalRoute
   '/mr-list': typeof MrListRoute
+  '/my-entries': typeof MyEntriesRoute
   '/password': typeof PasswordRoute
   '/report-entry': typeof ReportEntryRoute
   '/roles': typeof RolesRoute
@@ -195,6 +204,7 @@ export interface FileRouteTypes {
     | '/malaysia-report'
     | '/medical'
     | '/mr-list'
+    | '/my-entries'
     | '/password'
     | '/report-entry'
     | '/roles'
@@ -215,6 +225,7 @@ export interface FileRouteTypes {
     | '/malaysia-report'
     | '/medical'
     | '/mr-list'
+    | '/my-entries'
     | '/password'
     | '/report-entry'
     | '/roles'
@@ -235,6 +246,7 @@ export interface FileRouteTypes {
     | '/malaysia-report'
     | '/medical'
     | '/mr-list'
+    | '/my-entries'
     | '/password'
     | '/report-entry'
     | '/roles'
@@ -256,6 +268,7 @@ export interface RootRouteChildren {
   MalaysiaReportRoute: typeof MalaysiaReportRoute
   MedicalRoute: typeof MedicalRoute
   MrListRoute: typeof MrListRoute
+  MyEntriesRoute: typeof MyEntriesRoute
   PasswordRoute: typeof PasswordRoute
   ReportEntryRoute: typeof ReportEntryRoute
   RolesRoute: typeof RolesRoute
@@ -306,6 +319,13 @@ declare module '@tanstack/react-router' {
       path: '/password'
       fullPath: '/password'
       preLoaderRoute: typeof PasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-entries': {
+      id: '/my-entries'
+      path: '/my-entries'
+      fullPath: '/my-entries'
+      preLoaderRoute: typeof MyEntriesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mr-list': {
@@ -408,6 +428,7 @@ const rootRouteChildren: RootRouteChildren = {
   MalaysiaReportRoute: MalaysiaReportRoute,
   MedicalRoute: MedicalRoute,
   MrListRoute: MrListRoute,
+  MyEntriesRoute: MyEntriesRoute,
   PasswordRoute: PasswordRoute,
   ReportEntryRoute: ReportEntryRoute,
   RolesRoute: RolesRoute,

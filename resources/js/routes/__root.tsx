@@ -124,7 +124,6 @@ function RootComponent() {
         const data = await apiRequest("/auth/refresh", { method: "POST" });
         if (data && data.access_token) {
           setToken(data.access_token);
-          console.info("[auth] access token refreshed at", new Date().toISOString());
         }
       } catch (err) {
         console.warn("[auth] proactive token refresh failed (will retry):", err);

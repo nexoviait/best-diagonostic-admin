@@ -50,7 +50,7 @@ class PatientController extends Controller
 
     public function index(Request $request)
     {
-        $query = Patient::with(['country', 'agency', 'mr', 'medicalReport', 'xrayReport']);
+        $query = Patient::with(['country', 'agency', 'mr', 'creator', 'medicalReport', 'xrayReport']);
 
         // Filter by Pax ID or Passport or Name
         if ($request->has('search_field') && $request->has('search_value')) {
@@ -86,9 +86,22 @@ class PatientController extends Controller
             $query->where('mr_id', $request->mr_id);
         }
 
+        // Filter by creator (used by the "My Entries" page)
+        if ($request->filled('created_by')) {
+            $query->where('created_by', $request->created_by);
+        }
+
         $patients = $query->orderBy('created_at', 'desc')->get();
 
         return response()->json($patients);
+    }
+
+    public function creators()
+    {
+        $userIds = Patient::whereNotNull('created_by')->distinct()->pluck('created_by');
+        $users = User::whereIn('id', $userIds)->orderBy('name')->get(['id', 'name']);
+
+        return response()->json($users);
     }
 
     public function getPublicReport(Request $request)
@@ -171,6 +184,8 @@ class PatientController extends Controller
             'mr_id' => 'required|exists:mrs,id',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'fingerprint' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'fingerprint_template' => 'nullable|string|max:8000',
+            'fingerprint_quality' => 'nullable|integer|min:0|max:100',
             'medical_fee' => 'required|numeric',
             'received_amount' => 'nullable|numeric',
             'due_amount' => 'nullable|numeric',
@@ -217,6 +232,7 @@ class PatientController extends Controller
                     'received_amount'  => $received,
                     'due_amount'       => $due,
                     'date'             => $request->date ?? date('Y-m-d'),
+                    'created_by'       => Auth::guard('api')->id(),
                 ]
             ));
 
@@ -238,7 +254,7 @@ class PatientController extends Controller
 
             return response()->json([
                 'message' => 'Patient entry created successfully',
-                'data'    => Patient::with(['country', 'agency', 'mr'])->find($patient->id),
+                'data'    => Patient::with(['country', 'agency', 'mr', 'creator'])->find($patient->id),
             ], 201);
 
         } catch (\Exception $e) {
@@ -249,7 +265,7 @@ class PatientController extends Controller
 
     public function show($pax_id_or_id)
     {
-        $patient = Patient::with(['country', 'agency', 'mr', 'medicalReport', 'xrayReport'])
+        $patient = Patient::with(['country', 'agency', 'mr', 'creator', 'medicalReport', 'xrayReport'])
             ->where('pax_id', $pax_id_or_id)
             ->orWhere('id', $pax_id_or_id)
             ->first();
@@ -291,6 +307,8 @@ class PatientController extends Controller
             'in_words' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'fingerprint' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'fingerprint_template' => 'nullable|string|max:8000',
+            'fingerprint_quality' => 'nullable|integer|min:0|max:100',
         ], [], [
             'country_id' => 'country',
             'agency_id' => 'agency',
@@ -356,7 +374,7 @@ class PatientController extends Controller
 
         return response()->json([
             'message' => 'Patient updated successfully',
-            'data' => Patient::with(['country', 'agency', 'mr'])->find($patient->id)
+            'data' => Patient::with(['country', 'agency', 'mr', 'creator'])->find($patient->id)
         ]);
     }
 

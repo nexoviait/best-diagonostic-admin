@@ -27,8 +27,11 @@ class Patient extends Model
         'job_applied',
         'agency_id',
         'mr_id',
+        'created_by',
         'image_path',
         'fingerprint_path',
+        'fingerprint_template',
+        'fingerprint_quality',
         'medical_fee',
         'received_amount',
         'due_amount',
@@ -41,6 +44,12 @@ class Patient extends Model
      * can display the patient photo without building the URL itself.
      */
     protected $appends = ['image_url', 'fingerprint_url'];
+
+    /**
+     * Hide the raw template blob from list/detail JSON responses; it's only
+     * needed for future match/verify features, not for display.
+     */
+    protected $hidden = ['fingerprint_template'];
 
     /**
      * Returns the publicly accessible URL for the patient photo,
@@ -75,6 +84,11 @@ class Patient extends Model
     public function mr()
     {
         return $this->belongsTo(Mr::class, 'mr_id');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function medicalReport()

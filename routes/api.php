@@ -39,6 +39,7 @@ Route::middleware('auth:api')->group(function () {
     Route::apiResource('countries', CountryController::class);
     Route::apiResource('agencies',  AgencyController::class);
     Route::apiResource('mrs',       MrController::class);
+    Route::get('patients/creators', [PatientController::class, 'creators']);
     Route::apiResource('patients',  PatientController::class);
 
     // Medical & Xray Reports

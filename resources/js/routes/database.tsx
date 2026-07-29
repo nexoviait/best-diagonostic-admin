@@ -60,6 +60,7 @@ function DatabasePage() {
 
   const [agencyId, setAgencyId] = useState("all");
   const [mrId, setMrId] = useState("all");
+  const [creatorId, setCreatorId] = useState("all");
 
   const [filters, setFilters] = useState<Record<string, string>>({});
 
@@ -102,6 +103,11 @@ function DatabasePage() {
     queryFn: () => apiRequest("/mrs"),
   });
 
+  const { data: creators = [] } = useQuery<any[]>({
+    queryKey: ["creators"],
+    queryFn: () => apiRequest("/patients/creators"),
+  });
+
   // Fetch filtered patients
   const { data: patients = [], isLoading, isFetching } = useQuery<any[]>({
     queryKey: ["patients", filters],
@@ -115,6 +121,7 @@ function DatabasePage() {
       if (filters.to_date) params.append("to_date", filters.to_date);
       if (filters.agency_id && filters.agency_id !== "all") params.append("agency_id", filters.agency_id);
       if (filters.mr_id && filters.mr_id !== "all") params.append("mr_id", filters.mr_id);
+      if (filters.created_by && filters.created_by !== "all") params.append("created_by", filters.created_by);
 
       return apiRequest(`/patients?${params.toString()}`);
     },
@@ -196,10 +203,11 @@ function DatabasePage() {
               <th>Received</th>
               <th>Niddle</th>
               <th>Remark</th>
+              <th>Created By</th>
             </tr>
           </thead>
           <tbody>
-            ${patientsData.length === 0 ? '<tr><td colspan="10">No records found</td></tr>' : ''}
+            ${patientsData.length === 0 ? '<tr><td colspan="11">No records found</td></tr>' : ''}
             ${patientsData.map((p, i) => `
               <tr>
                 <td>${i + 1}</td>
@@ -212,6 +220,7 @@ function DatabasePage() {
                 <td>${p.received_amount || 0}</td>
                 <td>${p.niddle_charge || 0}</td>
                 <td>${p.medicalReport?.final_status || 'Pending'}</td>
+                <td>${p.creator?.name || ''}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -295,6 +304,21 @@ function DatabasePage() {
     const range = (dateFrom || dateTo) ? `From: ${formatDateLabel(dateFrom)}  To: ${formatDateLabel(dateTo)}` : 'All Dates';
     setPrintRequest({
       title: `MR History  ${mrName}`,
+      dateRange: range,
+      timestamp: Date.now()
+    });
+  };
+
+  const handleSearchByCreator = () => {
+    setFilters({
+      created_by: creatorId,
+      from_date: dateFrom,
+      to_date: dateTo,
+    });
+    const creatorName = creatorId === "all" ? "ALL USERS" : creators.find(c => String(c.id) === String(creatorId))?.name || "";
+    const range = (dateFrom || dateTo) ? `From: ${formatDateLabel(dateFrom)}  To: ${formatDateLabel(dateTo)}` : 'All Dates';
+    setPrintRequest({
+      title: `Created By  ${creatorName}`,
       dateRange: range,
       timestamp: Date.now()
     });
@@ -397,6 +421,31 @@ function DatabasePage() {
             </div>
           </div>
         </FilterCard>
+
+        <FilterCard title="By Creator" onSearch={handleSearchByCreator}>
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:w-auto">
+            <div className="w-full sm:w-[200px]">
+              <Label className="text-xs">Created By</Label>
+              <Select value={creatorId} onValueChange={setCreatorId}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Select user" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">ALL USERS</SelectItem>
+                  {creators.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full sm:w-[160px]">
+              <Label className="text-xs">From</Label>
+              <DatePicker value={dateFrom} onChange={setDateFrom} />
+            </div>
+            <div className="w-full sm:w-[160px]">
+              <Label className="text-xs">To</Label>
+              <DatePicker value={dateTo} onChange={setDateTo} />
+            </div>
+          </div>
+        </FilterCard>
       </div>
 
       <div className="card-surface mt-4 flex flex-col justify-between">
@@ -422,13 +471,14 @@ function DatabasePage() {
                   <th className="px-5 py-3 text-right font-medium">Total Fee (৳)</th>
                   <th className="px-5 py-3 text-right font-medium">Received (৳)</th>
                   <th className="px-5 py-3 text-right font-medium">Due (৳)</th>
+                  <th className="px-5 py-3 font-medium">Created By</th>
                   <th className="px-5 py-3 text-center font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={11} className="px-5 py-6 text-center text-muted-foreground">
+                    <td colSpan={12} className="px-5 py-6 text-center text-muted-foreground">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 className="h-4 w-4 animate-spin text-primary" />
                         Loading records...
@@ -437,7 +487,7 @@ function DatabasePage() {
                   </tr>
                 ) : paginatedPatients.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-5 py-6 text-center text-muted-foreground">
+                    <td colSpan={12} className="px-5 py-6 text-center text-muted-foreground">
                       No matching patient records found.
                     </td>
                   </tr>
@@ -478,6 +528,7 @@ function DatabasePage() {
                         <td className="px-5 py-3 text-right font-medium">{(Number(r.medical_fee) || 0).toLocaleString()}</td>
                         <td className="px-5 py-3 text-right text-success font-medium">{(Number(r.received_amount) || 0).toLocaleString()}</td>
                         <td className="px-5 py-3 text-right text-destructive font-medium">{(Number(r.due_amount) || 0).toLocaleString()}</td>
+                        <td className="px-5 py-3 text-muted-foreground">{r.creator?.name || "N/A"}</td>
                         <td className="px-5 py-3">
                           <div className="flex items-center justify-center gap-1.5">
                             {/* Medical Report Action */}
@@ -487,8 +538,7 @@ function DatabasePage() {
                               className="h-7 w-7 p-0 text-teal-600 hover:text-teal-700 hover:bg-teal-50"
                               onClick={() => {
                                 const route = r.country?.name?.toLowerCase() === 'malaysia' ? '/malaysia-report' : '/report-entry';
-                                sessionStorage.setItem("last_searched_patient_id", r.pax_id);
-                                navigate({ to: route });
+                                navigate({ to: route, search: { patient_id: r.pax_id } });
                               }}
                               title="Enter Medical Report"
                             >

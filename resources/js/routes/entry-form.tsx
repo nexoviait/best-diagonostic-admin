@@ -215,14 +215,26 @@ function EntryFormPage() {
         "image" | "fingerprint"
     >("image");
 
-    // Fingerprint Scanner states
+    // Fingerprint Scanner states (driven by the local ZK4500 WebSocket bridge)
     const [isScannerDialogOpen, setIsScannerDialogOpen] = useState(false);
     const [scannerStatus, setScannerStatus] = useState<
-        "detecting" | "ready" | "scanning" | "success" | "error"
-    >("detecting");
+        "disconnected" | "connecting" | "connected" | "scanning" | "error"
+    >("disconnected");
     const [scannerErrorMsg, setScannerErrorMsg] = useState<string | null>(
         null,
     );
+    const [scannerLivePreview, setScannerLivePreview] = useState<
+        string | null
+    >(null);
+    const [captureJustSucceeded, setCaptureJustSucceeded] = useState(false);
+    const [fingerprintTemplate, setFingerprintTemplate] = useState<
+        string | null
+    >(null);
+    const [fingerprintQuality, setFingerprintQuality] = useState<
+        number | null
+    >(null);
+    const scannerWsRef = useRef<WebSocket | null>(null);
+    const scannerArmedRef = useRef(false);
 
     // Dialog & Capture/Crop states
     const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
@@ -431,353 +443,157 @@ function EntryFormPage() {
         clear("fingerprint");
     };
 
-    const discoverActiveScannerPort = async (): Promise<{
-        type: "rd" | "zk";
-        port: number;
-        url: string;
-    } | null> => {
-        const portsToTest = [
-            {
-                type: "rd" as const,
-                port: 11100,
-                pingPath: "",
-                capturePath: "/rd/capture",
-            },
-            {
-                type: "rd" as const,
-                port: 11101,
-                pingPath: "",
-                capturePath: "/rd/capture",
-            },
-            {
-                type: "rd" as const,
-                port: 11102,
-                pingPath: "",
-                capturePath: "/rd/capture",
-            },
+    // The local ZK4500 bridge always listens on this fixed port; it auto-detects
+    // and auto-connects to the scanner on its own, we just reflect its status.
+    const SCANNER_WS_URL = "ws://127.0.0.1:8765";
+    const scannerReconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(
+        null,
+    );
 
-            // Our custom ZK scanner bridge (port 8089) uses /capture for actual scan
-            {
-                type: "zk" as const,
-                port: 8089,
-                pingPath: "/",
-                capturePath: "/capture",
-            },
-            {
-                type: "zk" as const,
-                port: 22001,
-                pingPath: "/",
-                capturePath: "/capture",
-            },
-            {
-                type: "zk" as const,
-                port: 8090,
-                pingPath: "/",
-                capturePath: "/capture",
-            },
-            {
-                type: "zk" as const,
-                port: 8080,
-                pingPath: "/",
-                capturePath: "/capture",
-            },
-            {
-                type: "zk" as const,
-                port: 8081,
-                pingPath: "/",
-                capturePath: "/capture",
-            },
-            {
-                type: "zk" as const,
-                port: 8087,
-                pingPath: "/",
-                capturePath: "/capture",
-            },
-            {
-                type: "zk" as const,
-                port: 19000,
-                pingPath: "/",
-                capturePath: "/capture",
-            },
-        ];
-
-        const currentHost =
-            typeof window !== "undefined"
-                ? window.location.hostname
-                : "localhost";
-        const hosts =
-            currentHost === "localhost" || currentHost === "127.0.0.1"
-                ? [
-                      currentHost,
-                      currentHost === "localhost" ? "127.0.0.1" : "localhost",
-                  ]
-                : ["127.0.0.1", "localhost"];
-
-        const pingPromises = portsToTest.map(async (device) => {
-            const hostResults = await Promise.all(
-                hosts.map(async (host) => {
-                    try {
-                        const controller = new AbortController();
-                        const timeoutId = setTimeout(
-                            () => controller.abort(),
-                            1200,
-                        ); // 1.2s timeout for discovery
-
-                        const url = `http://${host}:${device.port}${device.pingPath}`;
-
-                        // Use CORS mode to filter out non-scanner services (e.g., PHP-FPM on port 9000)
-                        const res = await fetch(url, {
-                            method: "GET",
-                            mode: "cors",
-                            signal: controller.signal,
-                        });
-                        clearTimeout(timeoutId);
-
-                        if (
-                            res.ok ||
-                            res.type === "opaque" ||
-                            res.status < 500
-                        ) {
-                            return { ...device, host, open: true };
-                        }
-                        return { ...device, host, open: false };
-                    } catch (e: any) {
-                        return { ...device, host, open: false };
-                    }
-                }),
-            );
-            return hostResults;
-        });
-
-        const nestedResults = await Promise.all(pingPromises);
-        const flatResults = nestedResults.flat();
-        const activeDevice = flatResults.find((r) => r.open);
-
-        if (!activeDevice) return null;
-
-        const targetUrl = `http://${activeDevice.host}:${activeDevice.port}${activeDevice.capturePath}`;
-
-        return {
-            type: activeDevice.type,
-            port: activeDevice.port,
-            url: targetUrl,
-        };
+    const scheduleScannerReconnect = () => {
+        if (scannerReconnectTimer.current) return;
+        scannerReconnectTimer.current = setTimeout(() => {
+            scannerReconnectTimer.current = null;
+            connectScannerWs();
+        }, 3000);
     };
 
-    const captureFingerprintFromDevice = async () => {
-        setIsScannerDialogOpen(true);
-        setScannerStatus("detecting");
-        setScannerErrorMsg(null);
-
-        // Discover active port
-        const activeDevice = await discoverActiveScannerPort();
-
-        if (!activeDevice) {
-            setScannerStatus("error");
-            setScannerErrorMsg(
-                "Fingerprint scanner not detected. Please connect the scanner and ensure driver service is running.",
-            );
+    const connectScannerWs = () => {
+        const existing = scannerWsRef.current;
+        if (
+            existing &&
+            (existing.readyState === WebSocket.OPEN ||
+                existing.readyState === WebSocket.CONNECTING)
+        ) {
             return;
         }
 
-        setScannerStatus("scanning");
-        let capturedDataUrl: string | null = null;
-        let scanSuccess = false;
-        let errorDetail: string | null = null;
+        let ws: WebSocket;
+        try {
+            ws = new WebSocket(SCANNER_WS_URL);
+        } catch {
+            scheduleScannerReconnect();
+            return;
+        }
+        scannerWsRef.current = ws;
 
-        const startTime = Date.now();
-        const maxDurationMs = 60000; // 60 seconds timeout
+        ws.onopen = () => {
+            if (scannerArmedRef.current) {
+                ws.send(JSON.stringify({ action: "arm" }));
+            }
+        };
 
-        while (Date.now() - startTime < maxDurationMs && !scanSuccess) {
+        ws.onmessage = (event) => {
+            let msg: any;
             try {
-                if (activeDevice.type === "rd") {
-                    const url = activeDevice.url;
-                    const pidOptions = `
-              <PidOptions ver="1.0">
-                <Opts fCount="1" fType="0" iCount="0" pCount="0" pgCount="0" format="0" pidVer="2.0" timeout="10000" posh="UNKNOWN" env="P" />
-              </PidOptions>
-            `.trim();
-
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-                    const response = await fetch(url, {
-                        method: "CAPTURE",
-                        body: pidOptions,
-                        headers: {
-                            "Content-Type": "text/xml",
-                            Accept: "text/xml",
-                        },
-                        signal: controller.signal,
-                    });
-                    clearTimeout(timeoutId);
-
-                    if (response.ok) {
-                        const xmlText = await response.text();
-                        const parser = new DOMParser();
-                        const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-                        const respNode = xmlDoc.getElementsByTagName("Resp")[0];
-                        const errCode = respNode?.getAttribute("errCode");
-
-                        if (errCode === "0") {
-                            const dataNode = xmlDoc.getElementsByTagName("Data")[0];
-                            const base64Data = dataNode?.textContent?.trim();
-                            if (base64Data) {
-                                capturedDataUrl = base64Data.startsWith("data:")
-                                    ? base64Data
-                                    : `data:image/png;base64,${base64Data}`;
-                                scanSuccess = true;
-                                break;
-                            }
-                        } else {
-                            const errInfo =
-                                respNode?.getAttribute("errInfo") || "Scan failed";
-                            if (
-                                errCode === "-1" ||
-                                errCode === "700" ||
-                                errInfo.toLowerCase().includes("busy")
-                            ) {
-                                // Auto retry on busy
-                            } else if (
-                                errCode === "101" ||
-                                errInfo.toLowerCase().includes("quality") ||
-                                errInfo.toLowerCase().includes("poor")
-                            ) {
-                                errorDetail =
-                                    "Poor fingerprint quality. Please clean your finger and place it firmly.";
-                                break;
-                            } else if (
-                                errCode === "102" ||
-                                errInfo.toLowerCase().includes("disconnected") ||
-                                errInfo.toLowerCase().includes("no device")
-                            ) {
-                                errorDetail =
-                                    "Scanner disconnected. Please check the USB connection.";
-                                break;
-                            }
-                        }
-                    }
-                } else {
-                    // Custom ZK driver capture query (port 8089)
-                    const url = activeDevice.url!;
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 12000);
-
-                    const response = await fetch(url, {
-                        method: "GET",
-                        signal: controller.signal,
-                    });
-                    clearTimeout(timeoutId);
-
-                    if (response.ok) {
-                        const responseText = await response.text();
-
-                        // Try parsing as JSON first
-                        try {
-                            const data = JSON.parse(responseText);
-                            const base64Data =
-                                data.image ||
-                                data.data ||
-                                data.bmp ||
-                                data.jpg ||
-                                data.png ||
-                                data.base64 ||
-                                data.template;
-                            if (base64Data && base64Data.length > 50) {
-                                capturedDataUrl = base64Data.startsWith("data:")
-                                    ? base64Data
-                                    : `data:image/png;base64,${base64Data}`;
-                                scanSuccess = true;
-                                break;
-                            } else if (data.error === "disconnected") {
-                                errorDetail =
-                                    data.message ||
-                                    "Scanner was disconnected. Please reconnect the USB cable and try again.";
-                                break;
-                            } else if (
-                                data.error === "quality" ||
-                                (data.message || "").toLowerCase().includes("quality")
-                            ) {
-                                errorDetail = "Poor fingerprint quality. Please clean your finger.";
-                                break;
-                            }
-                        } catch (jsonErr) {
-                            // If not JSON, try parsing as XML
-                            try {
-                                const parser = new DOMParser();
-                                const xmlDoc = parser.parseFromString(
-                                    responseText,
-                                    "text/xml",
-                                );
-                                const dataNode =
-                                    xmlDoc.getElementsByTagName("Data")[0] ||
-                                    xmlDoc.getElementsByTagName("Image")[0] ||
-                                    xmlDoc.getElementsByTagName("Template")[0] ||
-                                    xmlDoc.getElementsByTagName("Base64")[0];
-                                const base64Data = dataNode?.textContent?.trim();
-                                if (base64Data && base64Data.length > 50) {
-                                    capturedDataUrl = base64Data.startsWith("data:")
-                                        ? base64Data
-                                        : `data:image/png;base64,${base64Data}`;
-                                    scanSuccess = true;
-                                    break;
-                                }
-                            } catch (xmlErr) {
-                                // Fallback: If it's a raw base64 string
-                                const trimmed = responseText.trim();
-                                if (trimmed.length > 100 && !trimmed.startsWith("<")) {
-                                    capturedDataUrl = trimmed.startsWith("data:")
-                                        ? trimmed
-                                        : `data:image/png;base64,${trimmed}`;
-                                    scanSuccess = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (e: any) {
-                // Ignore transient network/abort errors during active polling
+                msg = JSON.parse(event.data);
+            } catch {
+                return;
             }
 
-            if (!scanSuccess) {
-                await new Promise((resolve) => setTimeout(resolve, 500));
-            }
-        }
-
-        if (!scanSuccess && !errorDetail) {
-            errorDetail = "Scan timeout. Please place your finger firmly on the scanner and try again.";
-        }
-
-        if (scanSuccess && capturedDataUrl) {
-            try {
-                const res = await fetch(capturedDataUrl);
-                const blob = await res.blob();
-                const file = new File([blob], "scanner-fingerprint.png", {
-                    type: "image/png",
-                });
-                handleFingerprintFileChange(file);
-                setFingerprintPreviewUrl(capturedDataUrl);
-                setScannerStatus("success");
-                toast.success(
-                    "Fingerprint captured successfully from scanner device.",
-                );
-                setTimeout(() => {
-                    setIsScannerDialogOpen(false);
-                }, 1500);
-            } catch (err) {
-                console.error("Error processing captured fingerprint:", err);
-                setScannerStatus("error");
+            if (msg.type === "status") {
+                setScannerStatus(msg.status);
                 setScannerErrorMsg(
-                    "Error processing scanned fingerprint file.",
+                    msg.status === "error" || msg.status === "disconnected"
+                        ? msg.message || null
+                        : null,
                 );
+                if (msg.status !== "scanning") {
+                    setScannerLivePreview(null);
+                }
+            } else if (msg.type === "preview") {
+                setScannerLivePreview(msg.image);
+            } else if (msg.type === "capture") {
+                setScannerLivePreview(null);
+                fetch(msg.image)
+                    .then((res) => res.blob())
+                    .then((blob) => {
+                        const file = new File(
+                            [blob],
+                            "scanner-fingerprint.png",
+                            { type: "image/png" },
+                        );
+                        handleFingerprintFileChange(file);
+                        setFingerprintPreviewUrl(msg.image);
+                        setFingerprintTemplate(msg.template || null);
+                        setFingerprintQuality(
+                            typeof msg.quality === "number"
+                                ? msg.quality
+                                : null,
+                        );
+                        setCaptureJustSucceeded(true);
+                        toast.success(
+                            `Fingerprint captured (quality ${msg.quality ?? "N/A"}%).`,
+                        );
+                        setTimeout(() => {
+                            setCaptureJustSucceeded(false);
+                            setIsScannerDialogOpen(false);
+                        }, 1500);
+                    })
+                    .catch(() => {
+                        toast.error(
+                            "Error processing captured fingerprint image.",
+                        );
+                    });
             }
-        } else {
-            setScannerStatus("error");
-            setScannerErrorMsg(
-                errorDetail ||
-                    "Fingerprint scanner not detected. Please connect the scanner and try again.",
+        };
+
+        ws.onclose = () => {
+            if (scannerWsRef.current === ws) {
+                scannerWsRef.current = null;
+            }
+            setScannerStatus("disconnected");
+            setScannerLivePreview(null);
+            scheduleScannerReconnect();
+        };
+
+        ws.onerror = () => {
+            ws.close();
+        };
+    };
+
+    // Keep a live connection to the scanner bridge for as long as this page is
+    // open, so scanner status is always current — not just while the capture
+    // dialog is open.
+    useEffect(() => {
+        connectScannerWs();
+        return () => {
+            if (scannerReconnectTimer.current) {
+                clearTimeout(scannerReconnectTimer.current);
+                scannerReconnectTimer.current = null;
+            }
+            scannerWsRef.current?.close();
+            scannerWsRef.current = null;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Arm/disarm live finger detection based on whether the capture dialog is
+    // open — no button press is needed once armed, the bridge auto-captures.
+    useEffect(() => {
+        scannerArmedRef.current = isScannerDialogOpen;
+        const ws = scannerWsRef.current;
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(
+                JSON.stringify({
+                    action: isScannerDialogOpen ? "arm" : "disarm",
+                }),
             );
+        } else if (isScannerDialogOpen) {
+            connectScannerWs();
+        }
+        if (!isScannerDialogOpen) {
+            setScannerLivePreview(null);
+            setCaptureJustSucceeded(false);
+        }
+    }, [isScannerDialogOpen]);
+
+    const retryScannerConnection = () => {
+        const ws = scannerWsRef.current;
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ action: "arm" }));
+        } else {
+            connectScannerWs();
         }
     };
 
@@ -906,6 +722,8 @@ function EntryFormPage() {
         setFingerprintFile(null);
         setImagePreviewUrl(p.image_url || null);
         setFingerprintPreviewUrl(p.fingerprint_url || null);
+        setFingerprintTemplate(null);
+        setFingerprintQuality(null);
         setIsEditing(true);
         clearAll();
     };
@@ -1072,6 +890,15 @@ function EntryFormPage() {
         if (fingerprintFile) {
             formData.append("fingerprint", fingerprintFile);
         }
+        if (fingerprintTemplate) {
+            formData.append("fingerprint_template", fingerprintTemplate);
+        }
+        if (fingerprintQuality !== null) {
+            formData.append(
+                "fingerprint_quality",
+                String(fingerprintQuality),
+            );
+        }
         return formData;
     };
 
@@ -1107,6 +934,8 @@ function EntryFormPage() {
         setImageFile(null);
         setFingerprintFile(null);
         setImagePreviewUrl(null);
+        setFingerprintTemplate(null);
+        setFingerprintQuality(null);
         setMedicalFee("");
         setReceivedAmount("");
         setNiddleCharge("");
@@ -2042,13 +1871,49 @@ function EntryFormPage() {
                                                         fieldErrors.fingerprint) &&
                                                         "border-red-500 text-red-500",
                                                 )}
-                                                onClick={
-                                                    captureFingerprintFromDevice
+                                                onClick={() =>
+                                                    setIsScannerDialogOpen(
+                                                        true,
+                                                    )
                                                 }
                                             >
                                                 <Fingerprint className="h-4 w-4" />
                                                 Scan Fingerprint
                                             </Button>
+                                            <span className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                                <span
+                                                    className={cn(
+                                                        "h-1.5 w-1.5 rounded-full",
+                                                        scannerStatus ===
+                                                            "connected" &&
+                                                            "bg-emerald-500",
+                                                        scannerStatus ===
+                                                            "scanning" &&
+                                                            "bg-blue-500 animate-pulse",
+                                                        scannerStatus ===
+                                                            "connecting" &&
+                                                            "bg-amber-400 animate-pulse",
+                                                        scannerStatus ===
+                                                            "disconnected" &&
+                                                            "bg-slate-400",
+                                                        scannerStatus ===
+                                                            "error" &&
+                                                            "bg-red-500",
+                                                    )}
+                                                />
+                                                {scannerStatus === "connected" &&
+                                                    "Scanner ready"}
+                                                {scannerStatus === "scanning" &&
+                                                    "Scanning..."}
+                                                {scannerStatus ===
+                                                    "connecting" &&
+                                                    "Connecting..."}
+                                                {scannerStatus ===
+                                                    "disconnected" &&
+                                                    "Scanner disconnected"}
+                                                {scannerStatus === "error" &&
+                                                    "Scanner error"}
+                                            </span>
                                             <button
                                                 type="button"
                                                 className="text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground text-left"
@@ -2505,78 +2370,84 @@ function EntryFormPage() {
                             </DialogHeader>
 
                             <div className="flex flex-col items-center justify-center p-6 border rounded-lg bg-slate-50 min-h-[200px]">
-                                {scannerStatus === "detecting" && (
-                                    <div className="flex flex-col items-center gap-3 text-center">
-                                        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                                        <p className="text-sm font-semibold">
-                                            Detecting connected fingerprint
-                                            scanner device...
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            Checking USB connections and
-                                            drivers...
-                                        </p>
-                                    </div>
-                                )}
-
-                                {scannerStatus === "scanning" && (
-                                    <div className="flex flex-col items-center gap-3 text-center animate-pulse">
-                                        <Fingerprint className="h-14 w-14 text-primary" />
-                                        <p className="text-sm font-semibold text-primary">
-                                            Please place your finger on the
-                                            fingerprint scanner.
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            Scanning fingerprint... Please hold
-                                            still.
-                                        </p>
-                                    </div>
-                                )}
-
-                                {scannerStatus === "success" && (
+                                {captureJustSucceeded ? (
                                     <div className="flex flex-col items-center gap-3 text-center text-success">
                                         <CheckCircle2 className="h-12 w-12" />
                                         <p className="text-sm font-semibold">
                                             Fingerprint captured successfully!
                                         </p>
+                                        {fingerprintQuality !== null && (
+                                            <p className="text-xs text-muted-foreground">
+                                                Quality score:{" "}
+                                                {fingerprintQuality}%
+                                            </p>
+                                        )}
                                     </div>
-                                )}
-
-                                {scannerStatus === "error" && (
+                                ) : scannerStatus === "connecting" ||
+                                  scannerStatus === "connected" ? (
+                                    <div className="flex flex-col items-center gap-3 text-center">
+                                        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                                        <p className="text-sm font-semibold">
+                                            Getting the scanner ready...
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            No button press needed — the scan
+                                            starts automatically once your
+                                            finger is detected.
+                                        </p>
+                                    </div>
+                                ) : scannerStatus === "scanning" ? (
+                                    <div className="flex flex-col items-center gap-3 text-center">
+                                        {scannerLivePreview ? (
+                                            <img
+                                                src={scannerLivePreview}
+                                                alt="Live fingerprint preview"
+                                                className="h-28 w-28 object-contain rounded border border-primary/30 bg-white"
+                                            />
+                                        ) : (
+                                            <Fingerprint className="h-14 w-14 text-primary animate-pulse" />
+                                        )}
+                                        <p className="text-sm font-semibold text-primary">
+                                            Please place your finger on the
+                                            fingerprint scanner.
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Detecting automatically — hold
+                                            still once you feel contact.
+                                        </p>
+                                    </div>
+                                ) : (
                                     <div className="flex flex-col items-center gap-3 text-center w-full">
                                         <AlertCircle className="h-12 w-12 text-destructive" />
                                         <p className="text-sm font-semibold text-destructive">
-                                            Capture Failed
+                                            {scannerStatus === "disconnected"
+                                                ? "Scanner Not Detected"
+                                                : "Capture Failed"}
                                         </p>
                                         <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-md w-full max-h-[100px] overflow-y-auto">
-                                            {scannerErrorMsg}
+                                            {scannerErrorMsg ||
+                                                "Fingerprint scanner not detected. Please connect the scanner and ensure the bridge is running."}
                                         </div>
-                                        {scannerErrorMsg &&
-                                            scannerErrorMsg.includes(
-                                                "not detected",
-                                            ) && (
-                                                <div className="mt-1 flex flex-col items-center gap-2 border border-dashed rounded-md p-3 bg-slate-50 w-full">
-                                                    <p className="text-[11px] text-muted-foreground font-medium">
-                                                        To run the scanner on
-                                                        this PC, download and
-                                                        run the bridge utility:
-                                                    </p>
-                                                    <a
-                                                        href="/drivers/ZK4500_Web_Bridge.exe"
-                                                        download
-                                                        className="inline-flex items-center justify-center rounded-md text-xs font-semibold ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-4 py-1.5 shadow"
-                                                    >
-                                                        Download Scanner Bridge
-                                                        (EXE)
-                                                    </a>
-                                                </div>
-                                            )}
+                                        <div className="mt-1 flex flex-col items-center gap-2 border border-dashed rounded-md p-3 bg-slate-50 w-full">
+                                            <p className="text-[11px] text-muted-foreground font-medium">
+                                                To run the scanner on this PC,
+                                                download and run the bridge
+                                                utility:
+                                            </p>
+                                            <a
+                                                href="/drivers/ZK4500_Web_Bridge.exe"
+                                                download
+                                                className="inline-flex items-center justify-center rounded-md text-xs font-semibold ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-4 py-1.5 shadow"
+                                            >
+                                                Download Scanner Bridge (EXE)
+                                            </a>
+                                        </div>
                                         <div className="flex items-center gap-2 mt-2">
                                             <Button
                                                 type="button"
                                                 variant="outline"
                                                 onClick={
-                                                    captureFingerprintFromDevice
+                                                    retryScannerConnection
                                                 }
                                                 className="text-xs flex items-center gap-1.5"
                                             >
