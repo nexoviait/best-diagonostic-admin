@@ -239,7 +239,7 @@ class PatientController extends Controller
             // Auto-create blank Medical Report
             MedicalReport::create([
                 'patient_id'   => $patient->id,
-                'final_status' => 'Pending',
+                'final_status' => 'Held up',
                 'is_online'    => 'No',
             ]);
 
@@ -247,7 +247,7 @@ class PatientController extends Controller
             XrayReport::create([
                 'patient_id' => $patient->id,
                 'date'       => $request->date ?? date('Y-m-d'),
-                'result'     => 'Normal',
+                'result'     => 'Pending',
             ]);
 
             DB::commit();

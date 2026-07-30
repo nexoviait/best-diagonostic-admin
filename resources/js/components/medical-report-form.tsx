@@ -5,12 +5,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Save, Printer, Search, Loader2, PlusCircle, FileText } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { toast } from "sonner";
 import { toastApiError } from "@/lib/toast-error";
 import { MedicalReportView } from "@/components/medical-report-view";
+import { PadReportView } from "@/components/pad-report-view";
 
 interface MedicalReportFormProps {
   mode: "general" | "malaysia";
@@ -36,9 +37,9 @@ const heightOptions = (() => {
 
 function FormField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[140px_1fr] items-center gap-2">
-      <Label className="text-xs font-semibold text-muted-foreground">{label}:</Label>
-      {children}
+    <div className="grid grid-cols-1 sm:grid-cols-[140px_1fr] items-start sm:items-center gap-1 sm:gap-2 min-w-0 w-full">
+      <Label className="text-xs font-semibold text-muted-foreground pt-1 sm:pt-0">{label}:</Label>
+      <div className="min-w-0 w-full">{children}</div>
     </div>
   );
 }
@@ -85,12 +86,47 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
   const [patient, setPatient] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("Edit Report");
-  const [showHeaderFooter, setShowHeaderFooter] = useState(true);
+  const [scale, setScale] = useState(1);
+  const previewWrapperRef = useRef<HTMLDivElement>(null);
 
   const { data: settings } = useQuery<any>({
     queryKey: ["public-settings"],
     queryFn: () => apiRequest("/public/site-settings"),
   });
+
+  useEffect(() => {
+    const updateScale = () => {
+      if (previewWrapperRef.current) {
+        const availableWidth = previewWrapperRef.current.clientWidth - 24;
+        if (availableWidth > 0 && availableWidth < 794) {
+          const calculatedScale = Math.min(Math.max(availableWidth / 794, 0.35), 1);
+          setScale(calculatedScale);
+        } else {
+          setScale(1);
+        }
+      } else {
+        const screenWidth = window.innerWidth;
+        if (screenWidth < 840) {
+          const availableWidth = Math.max(screenWidth - 32, 280);
+          setScale(Math.min(availableWidth / 794, 1));
+        } else {
+          setScale(1);
+        }
+      }
+    };
+
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    if (previewWrapperRef.current) {
+      observer.observe(previewWrapperRef.current);
+    }
+    window.addEventListener("resize", updateScale);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateScale);
+    };
+  }, [activeTab, patient]);
 
   // 1. Column 1 fields
   const [height, setHeight] = useState("");
@@ -149,7 +185,7 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
   const [comments, setComments] = useState("");
   const [info, setInfo] = useState("N/A");
   const [onLine, setOnLine] = useState("N/A");
-  const [finalStatus, setFinalStatus] = useState("Pending");
+  const [finalStatus, setFinalStatus] = useState("Held up");
 
   // Fetch all patients for Next/Previous pagination
   const { data: allPatients = [] } = useQuery<any[]>({
@@ -175,12 +211,12 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
       setEyeRight(mr.eye_right || "6/6");
       setEarRight(mr.ear_right || "NAD");
       setBp(mr.bp || "");
-      setHernia(mr.hernia && mr.hernia !== "Absent" ? mr.hernia : "N/A");
-      setHbsag(mr.hbsag && mr.hbsag !== "Negative" ? mr.hbsag : "N/A");
+      setHernia(mr.hernia || "N/A");
+      setHbsag(mr.hbsag || "N/A");
       setSBili(mr.s_bili || "");
       setSgpt(mr.sgpt || "");
-      setTpha(mr.tpha && mr.tpha !== "Negative" ? mr.tpha : "N/A");
-      setPregnancy(mr.pregnancy && mr.pregnancy !== "Negative" ? mr.pregnancy : "N/A");
+      setTpha(mr.tpha || "N/A");
+      setPregnancy(mr.pregnancy || "N/A");
       setFilaria(mr.filaria || "N/A");
       setBldGroup(mr.bld_group || "O+ve");
       setFactor(mr.factor || "");
@@ -192,7 +228,7 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
       setRbc(mr.rbc || "");
       setPlatelets(mr.platelets || "");
       setWbc(mr.wbc || "");
-      setEcg(mr.ecg && mr.ecg !== "Normal" ? mr.ecg : "N/A");
+      setEcg(mr.ecg || "N/A");
       setDopThc(mr.dop_thc || "N/A");
       setDopAmp(mr.dop_amp || "N/A");
       setVaricoseVeins(mr.varicose_veins || "N/A");
@@ -204,12 +240,12 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
       setEarLeft(mr.ear_left || "NAD");
       setHeart(mr.heart || "");
       setHCeol(mr.h_ceol || "N/A");
-      setHcv(mr.hcv && mr.hcv !== "Negative" ? mr.hcv : "N/A");
+      setHcv(mr.hcv || "N/A");
       setSgot(mr.sgot || "");
-      setVdrl(mr.vdrl && mr.vdrl !== "Non-Reactive" && mr.vdrl !== "Negative" ? mr.vdrl : "N/A");
-      setHiv(mr.hiv && mr.hiv !== "Negative" ? mr.hiv : "N/A");
+      setVdrl(mr.vdrl || "N/A");
+      setHiv(mr.hiv || "N/A");
       setSuger(mr.suger || "");
-      setMalaria(mr.malaria && mr.malaria !== "Negative" ? mr.malaria : "N/A");
+      setMalaria(mr.malaria || "N/A");
       setHemoglo(mr.hemoglo || "");
       setSUrea(mr.s_urea || "");
       setSCreati(mr.s_creati || "");
@@ -227,7 +263,7 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
       setComments(mr.comments || "");
       setInfo(mr.info || "N/A");
       setOnLine(mr.on_line || "N/A");
-      setFinalStatus(mr.status || "Pending");
+      setFinalStatus(mr.final_status || "Held up");
     } else {
       // Reset form to defaults
       setHeight("");
@@ -284,7 +320,7 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
       setComments("");
       setInfo("N/A");
       setOnLine("N/A");
-      setFinalStatus("Pending");
+      setFinalStatus("Held up");
     }
   };
 
@@ -349,10 +385,6 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
     }
   };
 
-  const handlePrint = (_tabName?: string) => {
-    window.print();
-  };
-
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!patient) throw new Error("No patient loaded.");
@@ -360,7 +392,7 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
         patient_id: patient.id,
         height, eye_right: eyeRight, ear_right: earRight, bp, hernia, hbsag, s_bili: sBili, sgpt, tpha, pregnancy, filaria, bld_group: bldGroup, factor, rbs, esr, dc, lymphocytes, monocytes, rbc, platelets, wbc, ecg, dop_thc: dopThc, dop_amp: dopAmp, varicose_veins: varicoseVeins, psychiatry,
         weight, eye_left: eyeLeft, ear_left: earLeft, heart, h_ceol: hCeol, hcv, sgot, vdrl, hiv, suger, malaria, hemoglo, s_urea: sUrea, s_creati: sCreati, tc, neutrophils, eosinophils, basophils, lipid_profile_tg: lipidProfileTg, tsh, total_t4: totalT4, albumin, dop_opi: dopOpi,
-        comments, info, on_line: onLine, status: finalStatus,
+        comments, info, on_line: onLine, final_status: finalStatus,
       };
       return apiRequest("/medical-reports", { method: "POST", body: JSON.stringify(payload) });
     },
@@ -411,70 +443,80 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
           </div>
         </div>
 
-        {/* Search Patient by ID */}
-        <div className="w-full min-w-0 sm:w-auto">
-          <Label className="text-xs uppercase text-muted-foreground block mb-1">Search Patient by ID</Label>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Input
-              placeholder="e.g. BEST000001"
-              value={searchId}
-              onChange={(e) => setSearchId(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              className="h-9 w-full sm:w-60"
-            />
-            <Button onClick={handleSearch} className="gradient-primary h-9 w-full sm:w-auto" disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-              Search
-            </Button>
+        {/* Search Patient by ID & Print Action */}
+        <div className="w-full min-w-0 lg:w-auto flex items-end gap-2 flex-wrap">
+          <div className="flex-1 min-w-[220px]">
+            <Label className="text-xs uppercase text-muted-foreground block mb-1">Search Patient by ID</Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="e.g. BEST000001"
+                value={searchId}
+                onChange={(e) => setSearchId(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                className="h-9 w-full min-w-0"
+              />
+              <Button onClick={handleSearch} className="gradient-primary h-9 shrink-0" disabled={loading}>
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                Search
+              </Button>
+            </div>
           </div>
+
+          {patient && activeTab === "Report" && (
+            <Button onClick={() => window.print()} className="bg-[#0f172a] hover:bg-[#1e293b] text-white text-xs gap-1.5 font-bold h-9 shrink-0">
+              <Printer className="h-3.5 w-3.5" /> Print Report
+            </Button>
+          )}
+          {patient && activeTab === "Pad Report" && (
+            <Button onClick={() => window.print()} className="bg-[#0f172a] hover:bg-[#1e293b] text-white text-xs gap-1.5 font-bold h-9 shrink-0">
+              <Printer className="h-3.5 w-3.5" /> Print Pad Report
+            </Button>
+          )}
         </div>
       </div>
 
       {patient && (
         <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[220px_1fr]">
           {/* Left Shortcuts Menu Panel */}
-          <aside className="card-surface min-w-0 p-3 h-fit space-y-3 sticky top-[212px] self-start no-print">
-            <div className="space-y-1">
+          <aside className="card-surface min-w-0 p-2 sm:p-3 h-fit sticky top-[77px] z-10 self-start no-print">
+            <div className="flex flex-wrap lg:flex-col gap-1.5">
               <Button
                 variant="ghost"
-                className="w-full justify-start"
+                className="justify-start text-xs sm:text-sm h-9"
                 onClick={() => window.location.href = "/entry-form"}
               >
-                <PlusCircle className="mr-2 h-4 w-4" />
+                <PlusCircle className="mr-1.5 h-4 w-4 shrink-0" />
                 New Entry
               </Button>
               <Button
                 variant={activeTab === "Edit Report" ? "default" : "ghost"}
-                className={`w-full justify-start ${activeTab === "Edit Report" ? "gradient-primary text-white" : ""}`}
+                className={`justify-start text-xs sm:text-sm h-9 ${activeTab === "Edit Report" ? "gradient-primary text-white" : ""}`}
                 onClick={() => setActiveTab("Edit Report")}
               >
-                <PlusCircle className="mr-2 h-4 w-4" />
+                <PlusCircle className="mr-1.5 h-4 w-4 shrink-0" />
                 Edit Report
               </Button>
               {canPrintReport && (
-                <Button
-                  variant={activeTab === "Report" ? "default" : "ghost"}
-                  className={`w-full justify-start ${activeTab === "Report" ? "gradient-primary text-white" : ""}`}
-                  onClick={() => setActiveTab("Report")}
-                >
-                  <FileText className="mr-2 h-4 w-4" />
-                  Report
-                </Button>
+                <>
+                  <Button
+                    variant={activeTab === "Report" ? "default" : "ghost"}
+                    className={`justify-start text-xs sm:text-sm h-9 ${activeTab === "Report" ? "gradient-primary text-white" : ""}`}
+                    onClick={() => setActiveTab("Report")}
+                  >
+                    <FileText className="mr-1.5 h-4 w-4 shrink-0" />
+                    Report
+                  </Button>
+                  <Button
+                    variant={activeTab === "Pad Report" ? "default" : "ghost"}
+                    className={`justify-start text-xs sm:text-sm h-9 ${activeTab === "Pad Report" ? "gradient-primary text-white" : ""}`}
+                    onClick={() => setActiveTab("Pad Report")}
+                  >
+                    <FileText className="mr-1.5 h-4 w-4 shrink-0" />
+                    Pad Report
+                  </Button>
+                </>
               )}
             </div>
-
-            {activeTab !== "Edit Report" && (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  className="gradient-primary shadow-md w-full"
-                  onClick={() => handlePrint(activeTab)}
-                >
-                  <Printer className="mr-2 h-4 w-4" />
-                  Print Document
-                </Button>
-              </div>
-            )}
-
             <div className="border-t border-border/40 pt-2 space-y-1">
               <Button
                 variant="ghost"
@@ -818,7 +860,7 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
                         <SelectContent>
                           <SelectItem value="Fit">FIT</SelectItem>
                           <SelectItem value="Unfit">UNFIT</SelectItem>
-                          <SelectItem value="Pending">PENDING</SelectItem>
+                          <SelectItem value="Held up">HELD UP</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -844,81 +886,125 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
 
             {/* TAB 4: Medical Report template */}
             {activeTab === "Report" && (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm no-print">
-                  <label className="flex items-center gap-2.5 cursor-pointer select-none bg-slate-50 px-3.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors">
-                    <span className="text-xs font-bold text-slate-700">Print Header & Footer</span>
-                    <input
-                      type="checkbox"
-                      checked={showHeaderFooter}
-                      onChange={(e) => setShowHeaderFooter(e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 accent-teal-600 cursor-pointer"
-                    />
-                  </label>
+              <div ref={previewWrapperRef} className="bg-white p-2 sm:p-4 rounded-xl border border-slate-200 overflow-x-auto flex justify-center min-w-0 w-full">
+                <MedicalReportView
+                  patient={patient}
+                  formValues={{
+                    height,
+                    weight,
+                    eyeRight,
+                    eyeLeft,
+                    earRight,
+                    earLeft,
+                    bp,
+                    hernia,
+                    hbsag,
+                    sBili,
+                    sgpt,
+                    tpha,
+                    pregnancy,
+                    bldGroup,
+                    rbs,
+                    esr,
+                    dc,
+                    lymphocytes,
+                    monocytes,
+                    rbc,
+                    platelets,
+                    wbc,
+                    ecg,
+                    dopThc,
+                    dopAmp,
+                    dopOpi,
+                    heart,
+                    hCeol,
+                    hcv,
+                    sgot,
+                    vdrl,
+                    hiv,
+                    suger,
+                    malaria,
+                    hemoglo,
+                    sUrea,
+                    sCreati,
+                    tc,
+                    neutrophils,
+                    eosinophils,
+                    basophils,
+                    lipidProfileTg,
+                    tsh,
+                    totalT4,
+                    albumin,
+                    comments,
+                    finalStatus,
+                    varicoseVeins,
+                    psychiatry,
+                  }}
+                  settings={settings}
+                  scale={scale}
+                />
+              </div>
+            )}
 
-                  <Button onClick={() => window.print()} className="bg-[#0f172a] hover:bg-[#1e293b] text-xs gap-1.5 font-bold">
-                    <Printer className="h-3.5 w-3.5" /> Print Report
-                  </Button>
-                </div>
-
-                <div className="bg-white p-4 rounded-xl border border-slate-200 overflow-x-auto">
-                  <MedicalReportView
-                    patient={patient}
-                    formValues={{
-                      height,
-                      weight,
-                      eyeRight,
-                      eyeLeft,
-                      earRight,
-                      earLeft,
-                      bp,
-                      hernia,
-                      hbsag,
-                      sBili,
-                      sgpt,
-                      tpha,
-                      pregnancy,
-                      bldGroup,
-                      rbs,
-                      esr,
-                      dc,
-                      lymphocytes,
-                      monocytes,
-                      rbc,
-                      platelets,
-                      wbc,
-                      ecg,
-                      dopThc,
-                      dopAmp,
-                      dopOpi,
-                      heart,
-                      hCeol,
-                      hcv,
-                      sgot,
-                      vdrl,
-                      hiv,
-                      suger,
-                      malaria,
-                      hemoglo,
-                      sUrea,
-                      sCreati,
-                      tc,
-                      neutrophils,
-                      eosinophils,
-                      basophils,
-                      lipidProfileTg,
-                      tsh,
-                      totalT4,
-                      albumin,
-                      comments,
-                      finalStatus,
-                      varicoseVeins,
-                      psychiatry,
-                    }}
-                    settings={settings}
-                    showHeaderFooter={showHeaderFooter}
-                  />
-                </div>
+            {/* TAB 5: Medical Pad Report template */}
+            {activeTab === "Pad Report" && (
+              <div ref={previewWrapperRef} className="bg-white p-2 sm:p-4 rounded-xl border border-slate-200 overflow-x-auto flex justify-center min-w-0 w-full">
+                <PadReportView
+                  patient={patient}
+                  formValues={{
+                    height,
+                    weight,
+                    eyeRight,
+                    eyeLeft,
+                    earRight,
+                    earLeft,
+                    bp,
+                    hernia,
+                    hbsag,
+                    sBili,
+                    sgpt,
+                    tpha,
+                    pregnancy,
+                    bldGroup,
+                    rbs,
+                    esr,
+                    dc,
+                    lymphocytes,
+                    monocytes,
+                    rbc,
+                    platelets,
+                    wbc,
+                    ecg,
+                    dopThc,
+                    dopAmp,
+                    dopOpi,
+                    heart,
+                    hCeol,
+                    hcv,
+                    sgot,
+                    vdrl,
+                    hiv,
+                    suger,
+                    malaria,
+                    hemoglo,
+                    sUrea,
+                    sCreati,
+                    tc,
+                    neutrophils,
+                    eosinophils,
+                    basophils,
+                    lipidProfileTg,
+                    tsh,
+                    totalT4,
+                    albumin,
+                    comments,
+                    finalStatus,
+                    varicoseVeins,
+                    psychiatry,
+                  }}
+                  settings={settings}
+                  scale={scale}
+                />
               </div>
             )}
           </div>

@@ -24,7 +24,7 @@ class MedicalReportController extends Controller
         if (!$report) {
             $report = MedicalReport::create([
                 'patient_id' => $patient->id,
-                'final_status' => 'Pending',
+                'final_status' => 'Held up',
                 'is_online' => 'No'
             ]);
         }
@@ -57,7 +57,7 @@ class MedicalReportController extends Controller
             'albumin' => 'nullable|string',
             'medical_history' => 'nullable|string',
             'comments' => 'nullable|string',
-            'final_status' => 'nullable|string|in:Fit,Unfit,Pending,FIT,UNFIT,PENDING',
+            'final_status' => 'nullable|string|in:Fit,Unfit,Held up,FIT,UNFIT,HELD UP',
             'is_online' => 'nullable|string|in:Yes,No,YES,NO',
             'height' => 'nullable|string',
             'weight' => 'nullable|string',
@@ -122,7 +122,7 @@ class MedicalReportController extends Controller
             array_merge($validator->validated(), [
                 'patient_id' => $patient->id,
                 // Ensure proper capitalization for status matches
-                'final_status' => ucfirst(strtolower($request->final_status ?? 'Pending')),
+                'final_status' => ucfirst(strtolower($request->final_status ?? 'Held up')),
                 'is_online' => ucfirst(strtolower($request->is_online ?? 'No'))
             ])
         );

@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DatePicker } from "@/components/ui/date-picker";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   TrendingUp,
   Users,
@@ -804,7 +804,7 @@ function AdminReportPage() {
                       </td>
                     </tr>
                   ) : (
-                    paginatedPatients.map((p, i) => {
+                    paginatedPatients.map((p: any, i: number) => {
                       const globalIndex = (currentPage - 1) * itemsPerPage + i + 1;
                       const reportStatus = p.medical_report?.final_status || "Pending";
                       return (

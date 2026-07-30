@@ -28,7 +28,7 @@ class XrayReportController extends Controller
             $report = XrayReport::create([
                 'patient_id' => $patient->id,
                 'date' => date('Y-m-d'),
-                'result' => 'Normal'
+                'result' => 'Pending'
             ]);
         }
 
@@ -42,7 +42,7 @@ class XrayReportController extends Controller
             'date' => 'nullable|string',
             'remark' => 'nullable|string',
             'findings' => 'nullable|string',
-            'result' => 'nullable|string|in:Normal,Abnormal,NORMAL,ABNORMAL',
+            'result' => 'nullable|string|in:Fit,Held up,Unfit,Pending',
             'xray_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
@@ -67,7 +67,7 @@ class XrayReportController extends Controller
             'date' => $request->date ?? date('Y-m-d'),
             'remark' => $request->remark,
             'findings' => $request->findings,
-            'result' => ucfirst(strtolower($request->result ?? 'Normal')),
+            'result' => ucfirst(strtolower($request->result ?? 'Pending')),
             'image_path' => $imagePath
         ]);
 

@@ -1,58 +1,78 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/medical")({
   component: MedicalSearchPage,
 });
 
 function MedicalSearchPage() {
-  const [passportNo, setPassportNo] = useState("");
+  const [searchType, setSearchType] = useState<"passport" | "pax">("passport");
+  const [searchValue, setSearchValue] = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!passportNo.trim()) return;
+    if (!searchValue.trim()) return;
     navigate({
       to: "/search-passport",
-      search: { PassportNo: passportNo.trim() },
+      search: { PassportNo: searchValue.trim() },
     });
   };
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-[#cccccc] px-4">
-      <button
-        type="button"
-        onClick={() => window.history.back()}
-        className="absolute left-4 top-4 flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        Back
-      </button>
       <div className="w-full max-w-[500px] rounded border border-gray-300 bg-white p-8 shadow-sm">
         <h2 className="mb-6 text-center text-sm font-semibold tracking-wide text-gray-800 uppercase">
           Check Online Medical Certificate
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="flex justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSearchType("passport")}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-semibold",
+                searchType === "passport"
+                  ? "border-[#0d9488] bg-[#0d9488] text-white"
+                  : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50",
+              )}
+            >
+              Search by Passport No
+            </button>
+            <button
+              type="button"
+              onClick={() => setSearchType("pax")}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-semibold",
+                searchType === "pax"
+                  ? "border-[#0d9488] bg-[#0d9488] text-white"
+                  : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50",
+              )}
+            >
+              Search by SL No
+            </button>
+          </div>
+
           <div className="flex items-center justify-center gap-3">
-            <Label htmlFor="passport" className="whitespace-nowrap text-xs font-semibold text-gray-700">
-              Passport No :
+            <Label htmlFor="search-value" className="whitespace-nowrap text-xs font-semibold text-gray-700">
+              {searchType === "passport" ? "Passport No :" : "SL No :"}
             </Label>
             <Input
-              id="passport"
+              id="search-value"
               type="text"
-              value={passportNo}
-              onChange={(e) => setPassportNo(e.target.value)}
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
               className="h-8 w-48 rounded border border-gray-400 px-2 text-xs focus-visible:ring-1"
               required
             />
           </div>
           <div className="text-center text-xs italic text-gray-500">
-            Example: AA34534656
+            {searchType === "passport" ? "Example: AA34534656" : "Example: BEST000015"}
           </div>
           <div className="flex justify-center gap-3">
             <Button

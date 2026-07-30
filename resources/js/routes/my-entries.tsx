@@ -119,7 +119,7 @@ function MyEntriesPage() {
                 ) : (
                   paginatedPatients.map((r, index) => {
                     const serialNum = (currentPage - 1) * itemsPerPage + index + 1;
-                    const reportStatus = r.medicalReport?.final_status || "Pending";
+                    const reportStatus = r.medicalReport?.final_status || "Held up";
                     const xrayStatus = r.xrayReport?.result || "Pending";
                     return (
                       <tr key={r.id} className="border-b border-border/40 last:border-0 hover:bg-muted/40">
@@ -130,9 +130,9 @@ function MyEntriesPage() {
                         <td className="px-5 py-3 text-muted-foreground">{r.agency?.name || "N/A"}</td>
                         <td className="px-5 py-3">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
-                            reportStatus === "FIT"
+                            reportStatus.toUpperCase() === "FIT"
                               ? "bg-green-50 text-green-700 border-green-200"
-                              : reportStatus === "UNFIT"
+                              : reportStatus.toUpperCase() === "UNFIT"
                               ? "bg-red-50 text-red-700 border-red-200"
                               : "bg-amber-50 text-amber-700 border-amber-200"
                           }`}>
@@ -141,9 +141,9 @@ function MyEntriesPage() {
                         </td>
                         <td className="px-5 py-3">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
-                            xrayStatus === "Normal"
+                            xrayStatus === "Fit"
                               ? "bg-green-50 text-green-700 border-green-200"
-                              : xrayStatus === "Abnormal"
+                              : xrayStatus === "Unfit"
                               ? "bg-red-50 text-red-700 border-red-200"
                               : "bg-slate-50 text-slate-700 border-slate-200"
                           }`}>

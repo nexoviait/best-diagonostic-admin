@@ -52,6 +52,7 @@ function useGreeting(): string {
 
 const statusStyles: Record<string, string> = {
   Fit: "bg-success/15 text-success border-success/30",
+  "Held up": "bg-warning/20 text-warning-foreground border-warning/40",
   Pending: "bg-warning/20 text-warning-foreground border-warning/40",
   Unfit: "bg-destructive/15 text-destructive border-destructive/30",
 };
@@ -93,7 +94,7 @@ function Overview() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button asChild variant="outline"><Link to="/database">View database</Link></Button>
+            <Button asChild variant="outline"><Link to="/database" search={{}}>View database</Link></Button>
             <Button asChild className="gradient-primary"><Link to="/entry-form"><Plus className="mr-1 h-4 w-4" />New entry</Link></Button>
           </div>
         </div>
@@ -141,7 +142,7 @@ function Overview() {
               <p className="text-xs text-muted-foreground">Latest medical records submitted</p>
             </div>
             <Button asChild variant="ghost" size="sm">
-              <Link to="/database">View all <ArrowUpRight className="ml-1 h-3.5 w-3.5" /></Link>
+              <Link to="/database" search={{}}>View all <ArrowUpRight className="ml-1 h-3.5 w-3.5" /></Link>
             </Button>
           </div>
           <div className="overflow-x-auto">

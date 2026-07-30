@@ -61,7 +61,6 @@ interface MedicalReportViewProps {
   patient: any;
   formValues?: FormValues;
   settings?: any;
-  showHeaderFooter?: boolean;
   scale?: number;
   containerRef?: React.RefObject<HTMLDivElement | null>;
 }
@@ -70,7 +69,6 @@ export function MedicalReportView({
   patient,
   formValues,
   settings,
-  showHeaderFooter = true,
   scale = 1,
   containerRef: externalContainerRef,
 }: MedicalReportViewProps) {
@@ -171,7 +169,13 @@ export function MedicalReportView({
     if (!val) return val;
     const str = String(val).trim();
     const lower = str.toLowerCase();
-    if (lower.includes("positive") || lower.includes("reactive") || lower === "present") {
+    // "Non-Reactive" / "Non Reactive" contain "reactive" as a substring but are
+    // a negative (normal) result, not a positive one, so they must stay black.
+    const isNegativeQualifier = lower.startsWith("non") || lower.includes("negative");
+    const isAbnormal =
+      !isNegativeQualifier &&
+      (lower.includes("positive") || lower.includes("reactive") || lower === "present");
+    if (isAbnormal) {
       return <span style={{ color: "#dc2626", fontWeight: "bold" }}>{str}</span>;
     }
     return str;
@@ -181,12 +185,11 @@ export function MedicalReportView({
   const cellBorder = "1px solid black";
   const cellPad = "2px 4px";
   const fs85 = "11px";
-  const fs9 = "12px";
+  const fs9 = "13px";
   const fs10 = "10px";
 
   const heightVal = getValue(formValues?.height, mr.height, "");
   const weightVal = formValues?.weight ? `${formValues.weight} KG` : (mr.weight ? `${mr.weight} KG` : "");
-  const pulseVal = getValue(formValues?.pulse, mr.pulse, "");
   const heartVal = getValue(formValues?.heart, mr.heart, "");
   const bpVal = getValue(formValues?.bp, mr.bp, "");
   const liverVal = getValue(formValues?.liver, mr.liver, "NORMAL");
@@ -240,9 +243,9 @@ export function MedicalReportView({
 
   return (
     <div
-      className="w-full flex justify-center items-start overflow-hidden print:overflow-visible print:block"
+      className="w-full flex justify-center items-start overflow-visible print:overflow-visible print:block"
       style={{
-        height: scale < 1 ? `${1122 * scale}px` : "auto",
+        height: scale < 1 ? `${1220 * scale}px` : "auto",
       }}
     >
       <style>{`
@@ -266,7 +269,7 @@ export function MedicalReportView({
             max-height: 297mm !important;
             overflow: hidden !important;
           }
-          header, aside, sidebar, nav, footer, .no-print, [data-sidebar="sidebar"], button, input, label {
+          header, aside, sidebar, nav, .no-print, [data-sidebar="sidebar"], button, input, label {
             display: none !important;
           }
           .print-container, .print-container * {
@@ -284,7 +287,7 @@ export function MedicalReportView({
             height: 297mm !important;
             max-height: 297mm !important;
             border: none !important;
-            padding: 3mm 10mm 6mm 10mm !important;
+            padding: 2mm 8mm 2mm 8mm !important;
             margin: 0 !important;
             box-shadow: none !important;
             box-sizing: border-box !important;
@@ -302,24 +305,25 @@ export function MedicalReportView({
       <div
         style={{
           width: scale < 1 ? `${794 * scale}px` : "794px",
-          height: scale < 1 ? `${1122 * scale}px` : "1122px",
+          height: scale < 1 ? `${1220 * scale}px` : "auto",
           position: scale < 1 ? "relative" : "static",
-          overflow: scale < 1 ? "hidden" : "visible",
+          overflow: "visible",
         }}
         className="print:w-auto print:h-auto print:static print:visible"
       >
         {/* Main Report Container */}
         <div
           ref={containerRef}
-          className="print-container relative overflow-hidden shrink-0"
+          className="print-container relative print:overflow-hidden shrink-0"
           style={{
             width: "794px",
-            height: "1122px",
+            minHeight: "1122px",
+            height: "auto",
             border: "none",
             backgroundColor: "#ffffff",
             padding: "0 28px 0 28px",
             boxSizing: "border-box",
-            fontFamily: "Arial, Helvetica, sans-serif",
+            fontFamily: "Arial, Helvetica, 'Nirmala UI', Vrinda, 'Noto Sans Bengali', sans-serif",
             color: "#000000",
             display: "flex",
             flexDirection: "column",
@@ -333,30 +337,26 @@ export function MedicalReportView({
           }}
         >
           {/* Background Watermark */}
-          {showHeaderFooter && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 select-none opacity-[0.04] print:opacity-[0.04]">
-              <img src={logoSrc} style={{ width: "400px", height: "auto", objectFit: "contain" }} alt="Watermark" />
-            </div>
-          )}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 select-none opacity-[0.12] print:opacity-[0.12]">
+            <img src={logoSrc} style={{ width: "600px", height: "auto", objectFit: "contain" }} alt="Watermark" />
+          </div>
 
-          <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", flex: 1, justifyContent: "space-between", height: "100%" }}>
-            <div style={{ display: "flex", flexDirection: "column", flex: 1, justifyContent: "space-between", height: "100%" }}>
+          <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", flex: 1, justifyContent: "flex-start", height: "100%" }}>
+            <div style={{ display: "flex", flexDirection: "column", flex: 1, justifyContent: "flex-start", height: "100%" }}>
               {/* Header Box - Full width edge-to-edge */}
               <div
                 style={{
-                  minHeight: "85px",
-                  marginBottom: "6px",
+                  minHeight: "auto",
+                  marginBottom: "0px",
                   position: "relative",
-                  marginTop: "-10px",
+                  marginTop: "0px",
                   marginLeft: "-28px",
                   marginRight: "-28px",
                   width: "calc(100% + 56px)",
+                  overflow: "hidden",
                 }}
               >
-                <div
-                  className={showHeaderFooter ? "" : "hide-on-print-toggle"}
-                  style={{ visibility: showHeaderFooter ? "visible" : "hidden" }}
-                >
+                <div>
                   {settings?.report_header_image_path ? (
                     <img
                       src={settings.report_header_image_path}
@@ -364,7 +364,7 @@ export function MedicalReportView({
                       style={{ width: "100%", height: "auto", display: "block", marginTop: "0px" }}
                     />
                   ) : (
-                    <div style={{ padding: "8px 28px 0 28px" }}>
+                    <div style={{ padding: "0px 28px 0 28px" }}>
                       {/* Top Slanted Ribbon */}
                       <div className="absolute top-0 right-0 flex h-4 w-48 overflow-hidden select-none pointer-events-none z-20" style={{ transform: "skewX(-35deg) translate(30px, 0)" }}>
                         <div className="flex-1 bg-[#16a34a]" />
@@ -394,12 +394,12 @@ export function MedicalReportView({
 
               <div>
               {/* Medical Report Title */}
-              <div style={{ fontSize: "19px", fontWeight: "bold", textAlign: "center", marginTop: showHeaderFooter ? "0px" : "60px", marginBottom: "4px", color: "#000000" }}>
+              <div style={{ fontSize: "20px", fontWeight: "bold", textAlign: "center", marginTop: "-3px", marginBottom: "1px", color: "#000000" }}>
                 Medical Report
               </div>
 
               {/* Patient Details Meta Table + Image */}
-              <div style={{ display: "flex", gap: "4px", width: "100%", marginBottom: "4px", alignItems: "stretch" }}>
+              <div style={{ display: "flex", gap: "4px", width: "100%", marginBottom: "2px", alignItems: "stretch" }}>
                 <div style={{ flex: 1 }}>
                   <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "2px", margin: 0 }}>
                     <colgroup>
@@ -412,7 +412,7 @@ export function MedicalReportView({
                     </colgroup>
                     <tbody>
                       <tr>
-                        <td style={{ border: cellBorder, padding: cellPad, fontSize: fs9, fontWeight: "bold", backgroundColor: "#ffffff" }}>Id No :</td>
+                        <td style={{ border: cellBorder, padding: cellPad, fontSize: fs9, fontWeight: "bold", backgroundColor: "#ffffff" }}>SL No :</td>
                         <td style={{ border: cellBorder, padding: cellPad, fontSize: fs9, fontWeight: "bold", textAlign: "center" }}>{patient?.pax_id}</td>
                         <td style={{ border: cellBorder, padding: cellPad, fontSize: fs9, fontWeight: "bold", backgroundColor: "#ffffff" }}>Examined :</td>
                         <td style={{ border: cellBorder, padding: cellPad, fontSize: fs9, textAlign: "center" }}>{formatDate(patient?.date)}</td>
@@ -442,7 +442,7 @@ export function MedicalReportView({
                     </tbody>
                   </table>
                 </div>
-                <div style={{ width: "80px", height: "100px", alignSelf: "flex-start", flexShrink: 0, border: cellBorder, backgroundColor: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", margin: "2px 0", overflow: "hidden" }}>
+                <div style={{ width: "80px", flexShrink: 0, border: cellBorder, backgroundColor: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", margin: "2px 0", boxSizing: "border-box", overflow: "hidden" }}>
                   {patient?.image_url ? (
                     <img src={patient.image_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="Patient Photo" />
                   ) : (
@@ -821,10 +821,10 @@ export function MedicalReportView({
                   </table>
 
                   {/* X-Ray box, Fingerprint, and Doctor Signature */}
-                  <div style={{ height: "145px", width: "100%", padding: "6px 2px", display: "flex", justifyContent: "space-between", alignItems: "center", boxSizing: "border-box", marginTop: "auto", backgroundColor: "#ffffff" }}>
+                  <div style={{ height: "150px", width: "100%", padding: "2px 2px", display: "flex", justifyContent: "space-between", alignItems: "center", boxSizing: "border-box", marginTop: "auto", backgroundColor: "#ffffff" }}>
                     <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                       {/* X-RAY Image Box */}
-                      <div style={{ width: "110px", height: "125px", border: cellBorder, backgroundColor: "#f8d7da", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", overflow: "hidden", position: "relative" }}>
+                      <div style={{ width: "140px", height: "150px", border: cellBorder, backgroundColor: "#f8d7da", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", overflow: "hidden", position: "relative" }}>
                         {xray?.image_url ? (
                           <img src={xray.image_url} alt="X-Ray" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                         ) : (
@@ -833,20 +833,20 @@ export function MedicalReportView({
                       </div>
 
                       {/* Fingerprint Circle */}
-                      <div style={{ width: "80px", height: "80px", border: cellBorder, borderRadius: "50%", backgroundColor: "#f8d7da", display: "flex", justifyContent: "center", alignItems: "center", overflow: "hidden", position: "relative" }}>
+                      <div style={{ width: "68px", height: "68px", border: cellBorder, borderRadius: "50%", backgroundColor: "#f8d7da", display: "flex", justifyContent: "center", alignItems: "center", overflow: "hidden", position: "relative" }}>
                         {patient?.fingerprint_url ? (
-                          <img src={patient.fingerprint_url} alt="Fingerprint" style={{ width: "100%", height: "100%", objectFit: "contain", padding: "2px" }} />
+                          <img src={patient.fingerprint_url} alt="Fingerprint" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                         ) : (
-                          <span style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase", textAlign: "center" }}>FINGERPRINT</span>
+                          <span style={{ fontSize: "8px", fontWeight: "bold", color: "#000000", textTransform: "uppercase", textAlign: "center" }}>FINGERPRINT</span>
                         )}
                       </div>
                     </div>
 
                     {/* Signature block */}
                     <div style={{ textAlign: "center", width: "155px" }}>
-                      <div style={{ height: "55px", display: "flex", alignItems: "flex-end", justifyContent: "center", marginBottom: "3px" }}>
+                      <div style={{ height: "45px", display: "flex", alignItems: "flex-end", justifyContent: "center", marginBottom: "3px" }}>
                         {settings?.signature_physician_path ? (
-                          <img src={settings.signature_physician_path} style={{ maxHeight: "55px", maxWidth: "155px", width: "auto", objectFit: "contain" }} alt="Signature" />
+                          <img src={settings.signature_physician_path} style={{ maxHeight: "45px", maxWidth: "155px", width: "auto", objectFit: "contain" }} alt="Signature" />
                         ) : (
                           <span style={{ fontSize: "11px", fontWeight: "bold", color: "#94a3b8" }}>Physician Sign</span>
                         )}
@@ -860,45 +860,45 @@ export function MedicalReportView({
               </div>
 
               {/* Bottom Remarks / QR code section */}
-              <div style={{ display: "flex", gap: "10px", alignItems: "flex-start", paddingTop: "6px", marginTop: "6px" }}>
-                <div style={{ textAlign: "center", width: "70px", flexShrink: 0 }}>
-                  <img src={qrCodeUrl} alt="QR Code" style={{ width: "70px", height: "70px", border: "1px solid #000" }} />
+              <div style={{ display: "flex", gap: "8px", alignItems: "flex-start", paddingTop: "2px", marginTop: "2px" }}>
+                <div style={{ textAlign: "center", width: "55px", flexShrink: 0 }}>
+                  <img src={qrCodeUrl} alt="QR Code" crossOrigin="anonymous" style={{ width: "55px", height: "55px", border: "1px solid #000" }} />
                 </div>
-                <div style={{ flex: 1, fontSize: "11px", lineHeight: "1.35" }}>
+                <div style={{ flex: 1, fontSize: "12px", lineHeight: "1.25" }}>
                   <div>
                     <strong>Remarks: Medical Report for </strong>
                     <span style={{ fontWeight: "bold", textTransform: "uppercase" }}>{patient?.first_name} {patient?.last_name || ""}</span>
                     <strong> is Medically </strong>
                   </div>
-                  <div style={{ marginTop: "2px", display: "flex", alignItems: "center", gap: "4px" }}>
-                    <strong>Info:</strong>
+                  <div style={{ marginTop: "1px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <strong style={{ fontSize: "12px" }}>Info:</strong>
                     <span
                       style={{
                         backgroundColor: (finalStatusVal || "UNFIT").toUpperCase() === "FIT" ? "#16a34a" : "#dc2626",
                         color: "#ffffff",
                         fontWeight: "bold",
-                        padding: "1px 6px",
-                        fontSize: "12px",
+                        padding: "2px 8px",
+                        fontSize: "14px",
                         display: "inline-block",
                       }}
                     >
                       {(finalStatusVal || "UNFIT").toUpperCase()}
                     </span>
                   </div>
-                  <div style={{ marginTop: "2px", fontSize: "10px" }}>
+                  <div style={{ marginTop: "2px", fontSize: "12px" }}>
                     <strong>Comment: </strong>
-                    <span>{commentsVal}</span>
+                    <span style={{ fontWeight: "bold"}}>{commentsVal}</span>
                   </div>
                 </div>
               </div>
 
               {/* Footer Bangla Notice & Address */}
-              <div style={{ borderTop: showHeaderFooter ? "2px solid #16a34a" : "none", marginTop: "auto", marginBottom: "15px", paddingTop: "0px", textAlign: "center" }}>
-                <p className="font-bengali" style={{ color: "#000000", fontWeight: "bold", fontSize: "11px", margin: "0" }}>
+              <div style={{ borderTop: "2px solid #16a34a", marginTop: "auto", marginBottom: "0px", paddingTop: "4px", textAlign: "center", transform: "translateY(-10px)" }}>
+                <p className="font-bengali" style={{ color: "#000000", fontWeight: "bold", fontSize: "12px", marginTop: "4px", marginBottom: "4px" }}>
                   মেডিকেল রিপোর্ট এর তথ্যটি সঠিক আছে কিনা জানার জন্য আমাদের ওয়েব সাইটে ভিজিট করুন অথবা QR Code স্ক্যান করুন।
                 </p>
 
-                <div className={showHeaderFooter ? "" : "hide-on-print-toggle"} style={{ visibility: showHeaderFooter ? "visible" : "hidden", marginTop: "3px" }}>
+                <div style={{ marginTop: "1px" }}>
                   {settings?.report_footer_image_path ? (
                     <img
                       src={settings.report_footer_image_path}
@@ -907,13 +907,13 @@ export function MedicalReportView({
                     />
                   ) : (
                     <div>
-                      <p style={{ color: "#16a34a", fontWeight: "bold", fontSize: "11px", textTransform: "uppercase", margin: "0", letterSpacing: "0.5px" }}>
+                      <p style={{ color: "#16a34a", fontWeight: "bold", fontSize: "10px", textTransform: "uppercase", margin: "0", letterSpacing: "0.5px" }}>
                         {companyAddressEn}
                       </p>
-                      <p style={{ color: "#16a34a", fontWeight: "bold", fontSize: "11px", margin: "2px 0 0 0" }}>
+                      <p style={{ color: "#16a34a", fontWeight: "bold", fontSize: "10px", margin: "1px 0 0 0" }}>
                         {companyPhoneEn}
                       </p>
-                      <p style={{ color: "#dc2626", fontWeight: "extrabold", fontSize: "12px", margin: "2px 0 0 0", letterSpacing: "0.5px" }}>
+                      <p style={{ color: "#dc2626", fontWeight: "extrabold", fontSize: "11px", margin: "1px 0 0 0", letterSpacing: "0.5px" }}>
                         www.bestdiagnostic.com.bd
                       </p>
                     </div>

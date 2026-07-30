@@ -27,7 +27,7 @@ function XrayPage() {
   const [date, setDate] = useState("");
   const [remark, setRemark] = useState("");
   const [findings, setFindings] = useState("");
-  const [result, setResult] = useState("Normal");
+  const [result, setResult] = useState("Fit");
   const [xrayImageFile, setXrayImageFile] = useState<File | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const { fieldErrors, setFromError, clear } = useFieldErrors();
@@ -61,12 +61,12 @@ function XrayPage() {
             setDate(xr.date || pData.date || new Date().toISOString().split("T")[0]);
             setRemark(xr.remark || "");
             setFindings(xr.findings || "");
-            setResult(xr.result || "Normal");
+            setResult(xr.result || "Fit");
           } else {
             setDate(pData.date || new Date().toISOString().split("T")[0]);
             setRemark("");
             setFindings("");
-            setResult("Normal");
+            setResult("Fit");
           }
           toast.success("Patient details loaded successfully.");
         } catch (err: any) {
@@ -96,12 +96,12 @@ function XrayPage() {
         setDate(xr.date || pData.date || new Date().toISOString().split("T")[0]);
         setRemark(xr.remark || "");
         setFindings(xr.findings || "");
-        setResult(xr.result || "Normal");
+        setResult(xr.result || "Fit");
       } else {
         setDate(pData.date || new Date().toISOString().split("T")[0]);
         setRemark("");
         setFindings("");
-        setResult("Normal");
+        setResult("Fit");
       }
       toast.success("Patient details loaded successfully.");
     } catch (err: any) {
@@ -202,8 +202,9 @@ function XrayPage() {
                 <Select value={result} onValueChange={setResult}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Normal">Normal</SelectItem>
-                    <SelectItem value="Abnormal">Abnormal</SelectItem>
+                    <SelectItem value="Fit">Fit</SelectItem>
+                    <SelectItem value="Held up">Held up</SelectItem>
+                    <SelectItem value="Unfit">Unfit</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

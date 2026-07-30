@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { Bell, Search } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
@@ -10,7 +12,14 @@ interface TopbarProps {
   subtitle?: string;
 }
 
+// A bare Pax ID / patient ID looks like letters followed by digits with no
+// spaces (e.g. BEST000015); anything else is treated as a name search.
+const detectSearchField = (query: string) =>
+  /^[A-Za-z]{2,6}\d{4,}$/.test(query.trim()) ? "pax" : "name";
+
 export function Topbar({ title, subtitle }: TopbarProps) {
+  const navigate = useNavigate();
+  const [query, setQuery] = useState("");
   const user = getUser();
   const name = user?.name || "Dr. Tahsin";
   const role = user?.role || "Administrator";
@@ -29,13 +38,26 @@ export function Topbar({ title, subtitle }: TopbarProps) {
           <h1 className="font-display text-base font-semibold leading-tight">{title}</h1>
           {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
         </div>
-        <div className="relative ml-auto hidden max-w-sm flex-1 md:block">
+        <form
+          className="relative ml-auto hidden max-w-sm flex-1 md:block"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const trimmed = query.trim();
+            if (!trimmed) return;
+            navigate({
+              to: "/database",
+              search: { q: trimmed, field: detectSearchField(trimmed) },
+            });
+          }}
+        >
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="Search patients, agencies, reports…"
             className="pl-9 bg-muted/60 border-transparent focus-visible:bg-background"
           />
-        </div>
+        </form>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-4 w-4" />
           <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary" />

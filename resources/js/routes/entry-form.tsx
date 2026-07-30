@@ -10,6 +10,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import {
     Save,
     Printer,
@@ -100,11 +101,11 @@ function Field({
     error?: string | null;
 }) {
     return (
-        <div className="grid grid-cols-[130px_1fr] items-start gap-3">
-            <Label className="text-sm text-muted-foreground pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-[130px_1fr] items-start gap-1.5 sm:gap-3 min-w-0 w-full">
+            <Label className="text-sm text-muted-foreground sm:pt-2">
                 {label}
             </Label>
-            <div>
+            <div className="min-w-0 w-full">
                 {children}
                 <FieldError message={error} />
             </div>
@@ -172,6 +173,21 @@ function numberToWords(num: number): string {
     };
 
     return convert(num).trim() + " Taka Only";
+}
+
+// Reporting date is the next day after entry, skipping Friday (office day off) —
+// an entry made on Thursday reports on Saturday instead of Friday.
+function computeReportingDate(entryDate: string): string {
+    if (!entryDate) return "";
+    const d = new Date(entryDate + "T00:00:00");
+    d.setDate(d.getDate() + 1);
+    if (d.getDay() === 5) {
+        d.setDate(d.getDate() + 1);
+    }
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
 }
 
 function EntryFormPage() {
@@ -449,13 +465,21 @@ function EntryFormPage() {
     const scannerReconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(
         null,
     );
+    const SCANNER_RECONNECT_MIN_MS = 3000;
+    const SCANNER_RECONNECT_MAX_MS = 30000;
+    const scannerReconnectDelayRef = useRef(SCANNER_RECONNECT_MIN_MS);
 
     const scheduleScannerReconnect = () => {
         if (scannerReconnectTimer.current) return;
+        const delay = scannerReconnectDelayRef.current;
+        scannerReconnectDelayRef.current = Math.min(
+            delay * 2,
+            SCANNER_RECONNECT_MAX_MS,
+        );
         scannerReconnectTimer.current = setTimeout(() => {
             scannerReconnectTimer.current = null;
             connectScannerWs();
-        }, 3000);
+        }, delay);
     };
 
     const connectScannerWs = () => {
@@ -478,6 +502,7 @@ function EntryFormPage() {
         scannerWsRef.current = ws;
 
         ws.onopen = () => {
+            scannerReconnectDelayRef.current = SCANNER_RECONNECT_MIN_MS;
             if (scannerArmedRef.current) {
                 ws.send(JSON.stringify({ action: "arm" }));
             }
@@ -960,6 +985,11 @@ function EntryFormPage() {
         const printWindow = window.open("", "_blank");
         if (!printWindow) return;
 
+        const authSigUrl =
+            user?.signature_authorised_path ||
+            user?.signature_path ||
+            siteSettings?.signature_authorised_path;
+
         let html = "";
 
         if (activeTab === "Invoice") {
@@ -968,41 +998,43 @@ function EntryFormPage() {
         <head>
           <title>Invoice - ${activePatient.pax_id}</title>
           <style>
-            @page { size: portrait; margin: 6mm 8mm; }
+            @page { size: A4; margin: 8mm 12mm; }
+            .half-page { height: 140mm; padding-top: 6px; box-sizing: border-box; overflow: hidden; }
             * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             html, body { width: 100%; }
-            body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; color: #0f172a; background: #fff; }
+            body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; color: #000; background: #fff; }
             .header { display: flex; justify-content: space-between; align-items: start; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 6px; gap: 12px; }
             .header h2 { margin: 0; font-size: 20px; font-weight: bold; color: oklch(0.58 0.14 180); }
-            .header p { margin: 4px 0 0; font-size: 11px; color: #64748b; }
+            .header p { margin: 4px 0 0; font-size: 13px; color: #000; }
             .report-title-section { text-align: right; display: flex; flex-direction: column; align-items: end; }
-            .report-title-section h3 { margin: 0; font-size: 13px; font-weight: bold; letter-spacing: 0.05em; color: #0f172a; }
-            .report-title-section p { margin: 4px 0 0; font-size: 14px; font-family: monospace; color: #64748b; }
-            .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 13px; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 6px; }
+            .report-title-section h3 { margin: 0; font-size: 14px; font-weight: bold; letter-spacing: 0.05em; color: #000; }
+            .report-title-section p { margin: 3px 0 0; font-size: 13px; font-family: monospace; color: #000; }
+            .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 14px; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 4px; }
             .meta-column p { margin: 1px 0; }
-            .label { color: #64748b; }
-            .value { font-weight: 600; }
-            table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 13px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+            .label { color: #000; }
+            .value { font-weight: 600; color: #000; }
+            table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 14px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
             th, td { padding: 3px 10px; }
-            th { background-color: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0; color: #475569; text-align: left; }
+            th { background-color: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0; color: #000; text-align: left; }
             td { border-bottom: 1px solid #f1f5f9; text-align: left; }
             .text-right { text-align: right; }
             tr:last-child td { border-bottom: none; }
             .total-row { font-weight: 600; background-color: #f8fafc; border-top: 1px solid #e2e8f0; }
             .success-row { font-weight: 600; color: rgb(22, 163, 74); }
             .destructive-row { font-weight: 600; color: rgb(220, 38, 38); }
-            .in-words-section { font-size: 13px; margin-top: 6px; font-style: italic; }
-            .in-words-section span { font-style: normal; color: #64748b; }
-            .footer-section { display: flex; justify-content: space-between; align-items: end; margin-top: 6px; }
-            .signature { text-align: center; border-top: 1px solid #cbd5e1; width: 180px; padding-top: 4px; font-size: 12px; color: #64748b; }
+            .in-words-section { font-size: 14px; margin-top: 4px; font-style: italic; }
+            .in-words-section span { font-style: normal; color: #000; }
+            .footer-section { display: flex; justify-content: space-between; align-items: end; margin-top: 4px; }
+            .signature { text-align: center; border-top: 1px solid #cbd5e1; width: 180px; padding-top: 2px; font-size: 13px; color: #000; }
           </style>
           <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
         </head>
         <body onload="initBarcode()">
+          <div class="half-page">
           <div class="header">
-            <div style="flex: 1;">
+            <div style="flex: 1; min-width: 0;">
               <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                <img src="${user?.logo_path || "/assets/images/best-logo.png"}" style="height: 38px; object-fit: contain;" />
+                <img src="${user?.logo_path || "/assets/images/best-logo.png"}" style="height: 56px; object-fit: contain;" />
                 <div style="display: flex; flex-direction: column; line-height: 1.15;">
                   <span style="font-weight: bold; font-size: 18px; color: #dc2626; white-space: nowrap;">${user?.company_name_en || "Best Health Diagnostic & Medical Center"}</span>
                   ${user?.company_name_bn ? `<span style="font-weight: bold; font-size: 13px; color: #19A54B; white-space: nowrap;">${user.company_name_bn}</span>` : ""}
@@ -1010,12 +1042,12 @@ function EntryFormPage() {
               </div>
               <p>${user?.company_address_en || "1/A DIT Extension Road, Fakirapool, Dhaka-1000"}</p>
             </div>
-            <div class="report-title-section" style="display: flex; flex-direction: column; align-items: flex-end; shrink-0;">
+            <div class="report-title-section" style="display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0;">
               <h3>PAYMENT RECEIPT</h3>
-              <p style="margin-bottom: 3px; margin-top: 3px; font-size: 11px; color: #64748b;">Invoice Date: ${activePatient.date}</p>
+              <p style="margin-bottom: 3px; margin-top: 3px; font-size: 11px; color: #000;">Invoice Date: ${activePatient.date}</p>
               <svg id="invoice-barcode"></svg>
             </div>
-            <img src="${activePatient.image_url || "/assets/images/best-logo.png"}" onerror="this.src='/assets/images/best-logo.png'" style="width: 46px; height: 58px; object-fit: cover; border: 1px solid #e2e8f0; border-radius: 4px; shrink-0;" />
+            <img src="${activePatient.image_url || "/assets/images/best-logo.png"}" onerror="this.src='/assets/images/best-logo.png'" style="width: 64px; height: 80px; object-fit: cover; border: 1px solid #e2e8f0; border-radius: 4px; flex-shrink: 0;" />
           </div>
           <div class="meta-grid">
             <div class="meta-column" style="display: flex; flex-direction: column; gap: 2px;">
@@ -1029,12 +1061,12 @@ function EntryFormPage() {
               <p><span class="label" style="display: inline-block; width: 130px;">Profession</span> <span class="value">: ${activePatient.job_applied || ""}</span></p>
             </div>
             <div class="meta-column" style="border-left: 1px dashed #cbd5e1; padding-left: 20px; display: flex; flex-direction: column; gap: 3px;">
-              <p><span class="label" style="display: inline-block; width: 130px;">Reporting Date</span> <span class="value">: ${activePatient.date ? activePatient.date.split("-").reverse().join("/") : ""}</span></p>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;"><span class="label" style="font-weight: 600; color: #0f172a;">BLOOD:</span><span style="width: 10px; height: 10px; border: 1px solid #000; display: inline-block; margin-right: 20px;"></span></div>
-              <div style="display: flex; justify-content: space-between; align-items: center;"><span class="label" style="font-weight: 600; color: #0f172a;">URINE:</span><span style="width: 10px; height: 10px; border: 1px solid #000; display: inline-block; margin-right: 20px;"></span></div>
-              <div style="display: flex; justify-content: space-between; align-items: center;"><span class="label" style="font-weight: 600; color: #0f172a;">STOOL:</span><span style="width: 10px; height: 10px; border: 1px solid #000; display: inline-block; margin-right: 20px;"></span></div>
-              <div style="display: flex; justify-content: space-between; align-items: center;"><span class="label" style="font-weight: 600; color: #0f172a;">PHYSICAL:</span><span style="width: 10px; height: 10px; border: 1px solid #000; display: inline-block; margin-right: 20px;"></span></div>
-              <div style="display: flex; justify-content: space-between; align-items: center;"><span class="label" style="font-weight: 600; color: #0f172a;">X-RAY:</span><span style="width: 10px; height: 10px; border: 1px solid #000; display: inline-block; margin-right: 20px;"></span></div>
+              <p><span class="label" style="display: inline-block; width: 130px;">Reporting Date</span> <span class="value">: ${activePatient.date ? computeReportingDate(activePatient.date).split("-").reverse().join("/") : ""}</span></p>
+              <div style="display: flex; justify-content: flex-start; align-items: center; margin-top: 6px;"><span class="label" style="font-weight: 600; color: #000; display: inline-block; width: 70px;">BLOOD:</span><span style="width: 10px; height: 10px; border: 1px solid #000; display: inline-block;"></span></div>
+              <div style="display: flex; justify-content: flex-start; align-items: center;"><span class="label" style="font-weight: 600; color: #000; display: inline-block; width: 70px;">URINE:</span><span style="width: 10px; height: 10px; border: 1px solid #000; display: inline-block;"></span></div>
+              <div style="display: flex; justify-content: flex-start; align-items: center;"><span class="label" style="font-weight: 600; color: #000; display: inline-block; width: 70px;">STOOL:</span><span style="width: 10px; height: 10px; border: 1px solid #000; display: inline-block;"></span></div>
+              <div style="display: flex; justify-content: flex-start; align-items: center;"><span class="label" style="font-weight: 600; color: #000; display: inline-block; width: 70px;">PHYSICAL:</span><span style="width: 10px; height: 10px; border: 1px solid #000; display: inline-block;"></span></div>
+              <div style="display: flex; justify-content: flex-start; align-items: center;"><span class="label" style="font-weight: 600; color: #000; display: inline-block; width: 70px;">X-RAY:</span><span style="width: 10px; height: 10px; border: 1px solid #000; display: inline-block;"></span></div>
             </div>
           </div>
           <table>
@@ -1049,16 +1081,15 @@ function EntryFormPage() {
                 <td>Medical Check-up Registration & Report fee</td>
                 <td class="text-right">${(Number(activePatient.medical_fee) || 0).toLocaleString()}</td>
               </tr>
-              ${
-                  Number(activePatient.niddle_charge) > 0
-                      ? `
+              ${Number(activePatient.niddle_charge) > 0
+                    ? `
               <tr>
                 <td>Needle Charge</td>
                 <td class="text-right">${(Number(activePatient.niddle_charge) || 0).toLocaleString()}</td>
               </tr>
               `
-                      : ""
-              }
+                    : ""
+                }
               <tr class="total-row">
                 <td>Total Amount Due</td>
                 <td class="text-right">${(Number(activePatient.medical_fee) + (Number(activePatient.niddle_charge) || 0)).toLocaleString()}</td>
@@ -1075,14 +1106,16 @@ function EntryFormPage() {
           </table>
           <div class="in-words-section" style="display: flex; flex-direction: column; gap: 2px;">
             <p style="margin: 0;"><span>In Words:</span> ${activePatient.in_words || numberToWords(Number(activePatient.medical_fee))}</p>
-            ${activePatient.medical_report?.comments ? `<p style="margin: 4px 0 0 0; font-family: monospace; color: #334155; font-size: 11px;"><strong>Comments:</strong> ${activePatient.medical_report.comments}</p>` : ""}
           </div>
           <div class="footer-section">
-            ${
-                user?.signature_authorised_path
-                    ? `<div class="signature" style="border-top: none; margin-left: auto;"><img src="${user.signature_authorised_path}" style="height: 36px; object-fit: contain; display: block; margin: 0 auto 2px auto;" />Operator / Cashier</div>`
+            <div>
+              <div style="font-size: 16px; color: #000000;">https://bestdiagnostic.com.bd/</div>
+              <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Developed by Nexovia IT Limited</div>
+            </div>
+            ${authSigUrl
+                    ? `<div class="signature" style="border-top: none; margin-left: auto;"><img src="${authSigUrl}" style="height: 36px; object-fit: contain; display: block; margin: 0 auto 2px auto;" />Operator / Cashier</div>`
                     : `<div class="signature" style="margin-left: auto;">Operator / Cashier</div>`
-            }
+                }
           </div>
           <script>
             function initBarcode() {
@@ -1104,6 +1137,7 @@ function EntryFormPage() {
               }, 300);
             }
           </script>
+          </div>
         </body>
         </html>
       `;
@@ -1113,41 +1147,43 @@ function EntryFormPage() {
         <head>
           <title>Invoice Zero - ${activePatient.pax_id}</title>
           <style>
-            @page { size: portrait; margin: 6mm 8mm; }
+            @page { size: A4; margin: 8mm 12mm; }
+            .half-page { height: 140mm; padding-top: 6px; box-sizing: border-box; overflow: hidden; }
             * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             html, body { width: 100%; }
-            body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; color: #0f172a; background: #fff; }
+            body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; color: #000; background: #fff; }
             .header { display: flex; justify-content: space-between; align-items: start; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 6px; gap: 12px; }
             .header h2 { margin: 0; font-size: 20px; font-weight: bold; color: oklch(0.58 0.14 180); }
-            .header p { margin: 4px 0 0; font-size: 11px; color: #64748b; }
+            .header p { margin: 4px 0 0; font-size: 13px; color: #000; }
             .report-title-section { text-align: right; display: flex; flex-direction: column; align-items: end; }
-            .report-title-section h3 { margin: 0; font-size: 13px; font-weight: bold; letter-spacing: 0.05em; color: #0f172a; }
-            .report-title-section p { margin: 4px 0 0; font-size: 14px; font-family: monospace; color: #64748b; }
-            .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 13px; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 6px; }
+            .report-title-section h3 { margin: 0; font-size: 14px; font-weight: bold; letter-spacing: 0.05em; color: #000; }
+            .report-title-section p { margin: 3px 0 0; font-size: 13px; font-family: monospace; color: #000; }
+            .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 14px; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 4px; }
             .meta-column p { margin: 1px 0; }
-            .label { color: #64748b; }
-            .value { font-weight: 600; }
-            table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 13px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+            .label { color: #000; }
+            .value { font-weight: 600; color: #000; }
+            table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 14px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
             th, td { padding: 3px 10px; }
-            th { background-color: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0; color: #475569; text-align: left; }
+            th { background-color: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0; color: #000; text-align: left; }
             td { border-bottom: 1px solid #f1f5f9; text-align: left; }
             .text-right { text-align: right; }
             tr:last-child td { border-bottom: none; }
             .total-row { font-weight: 600; background-color: #f8fafc; border-top: 1px solid #e2e8f0; }
             .success-row { font-weight: 600; color: rgb(22, 163, 74); }
             .normal-row { font-weight: 600; color: #64748b; }
-            .in-words-section { font-size: 13px; margin-top: 6px; font-style: italic; }
-            .in-words-section span { font-style: normal; color: #64748b; }
-            .footer-section { display: flex; justify-content: space-between; align-items: end; margin-top: 6px; }
-            .signature { text-align: center; border-top: 1px solid #cbd5e1; width: 180px; padding-top: 4px; font-size: 12px; color: #64748b; }
+            .in-words-section { font-size: 14px; margin-top: 4px; font-style: italic; }
+            .in-words-section span { font-style: normal; color: #000; }
+            .footer-section { display: flex; justify-content: space-between; align-items: end; margin-top: 4px; }
+            .signature { text-align: center; border-top: 1px solid #cbd5e1; width: 180px; padding-top: 2px; font-size: 13px; color: #000; }
           </style>
           <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
         </head>
         <body onload="initBarcode()">
+          <div class="half-page">
           <div class="header">
-            <div style="flex: 1;">
+            <div style="flex: 1; min-width: 0;">
               <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                <img src="${user?.logo_path || "/assets/images/best-logo.png"}" style="height: 38px; object-fit: contain;" />
+                <img src="${user?.logo_path || "/assets/images/best-logo.png"}" style="height: 56px; object-fit: contain;" />
                 <div style="display: flex; flex-direction: column; line-height: 1.15;">
                   <span style="font-weight: bold; font-size: 18px; color: #dc2626; white-space: nowrap;">${user?.company_name_en || "Best Health Diagnostic & Medical Center"}</span>
                   ${user?.company_name_bn ? `<span style="font-weight: bold; font-size: 13px; color: #19A54B; white-space: nowrap;">${user.company_name_bn}</span>` : ""}
@@ -1155,12 +1191,12 @@ function EntryFormPage() {
               </div>
               <p>${user?.company_address_en || "1/A DIT Extension Road, Fakirapool, Dhaka-1000"}</p>
             </div>
-            <div class="report-title-section" style="display: flex; flex-direction: column; align-items: flex-end; shrink-0;">
+            <div class="report-title-section" style="display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0;">
               <h3>PAYMENT RECEIPT</h3>
-              <p style="margin-bottom: 3px; margin-top: 3px; font-size: 11px; color: #64748b;">Invoice Date: ${activePatient.date}</p>
+              <p style="margin-bottom: 3px; margin-top: 3px; font-size: 11px; color: #000;">Invoice Date: ${activePatient.date}</p>
               <svg id="invoice-barcode"></svg>
             </div>
-            <img src="${activePatient.image_url || "/assets/images/best-logo.png"}" onerror="this.src='/assets/images/best-logo.png'" style="width: 46px; height: 58px; object-fit: cover; border: 1px solid #e2e8f0; border-radius: 4px; shrink-0;" />
+            <img src="${activePatient.image_url || "/assets/images/best-logo.png"}" onerror="this.src='/assets/images/best-logo.png'" style="width: 64px; height: 80px; object-fit: cover; border: 1px solid #e2e8f0; border-radius: 4px; flex-shrink: 0;" />
           </div>
           <div class="meta-grid">
             <div class="meta-column" style="display: flex; flex-direction: column; gap: 2px;">
@@ -1174,12 +1210,12 @@ function EntryFormPage() {
               <p><span class="label" style="display: inline-block; width: 130px;">Profession</span> <span class="value">: ${activePatient.job_applied || ""}</span></p>
             </div>
             <div class="meta-column" style="border-left: 1px dashed #cbd5e1; padding-left: 20px; display: flex; flex-direction: column; gap: 3px;">
-              <p><span class="label" style="display: inline-block; width: 130px;">Reporting Date</span> <span class="value">: ${activePatient.date ? activePatient.date.split("-").reverse().join("/") : ""}</span></p>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;"><span class="label" style="font-weight: 600; color: #0f172a;">BLOOD:</span><span style="width: 10px; height: 10px; border: 1px solid #000; display: inline-block; margin-right: 20px;"></span></div>
-              <div style="display: flex; justify-content: space-between; align-items: center;"><span class="label" style="font-weight: 600; color: #0f172a;">URINE:</span><span style="width: 10px; height: 10px; border: 1px solid #000; display: inline-block; margin-right: 20px;"></span></div>
-              <div style="display: flex; justify-content: space-between; align-items: center;"><span class="label" style="font-weight: 600; color: #0f172a;">STOOL:</span><span style="width: 10px; height: 10px; border: 1px solid #000; display: inline-block; margin-right: 20px;"></span></div>
-              <div style="display: flex; justify-content: space-between; align-items: center;"><span class="label" style="font-weight: 600; color: #0f172a;">PHYSICAL:</span><span style="width: 10px; height: 10px; border: 1px solid #000; display: inline-block; margin-right: 20px;"></span></div>
-              <div style="display: flex; justify-content: space-between; align-items: center;"><span class="label" style="font-weight: 600; color: #0f172a;">X-RAY:</span><span style="width: 10px; height: 10px; border: 1px solid #000; display: inline-block; margin-right: 20px;"></span></div>
+              <p><span class="label" style="display: inline-block; width: 130px;">Reporting Date</span> <span class="value">: ${activePatient.date ? computeReportingDate(activePatient.date).split("-").reverse().join("/") : ""}</span></p>
+              <div style="display: flex; justify-content: flex-start; align-items: center; margin-top: 6px;"><span class="label" style="font-weight: 600; color: #000; display: inline-block; width: 70px;">BLOOD:</span><span style="width: 10px; height: 10px; border: 1px solid #000; display: inline-block;"></span></div>
+              <div style="display: flex; justify-content: flex-start; align-items: center;"><span class="label" style="font-weight: 600; color: #000; display: inline-block; width: 70px;">URINE:</span><span style="width: 10px; height: 10px; border: 1px solid #000; display: inline-block;"></span></div>
+              <div style="display: flex; justify-content: flex-start; align-items: center;"><span class="label" style="font-weight: 600; color: #000; display: inline-block; width: 70px;">STOOL:</span><span style="width: 10px; height: 10px; border: 1px solid #000; display: inline-block;"></span></div>
+              <div style="display: flex; justify-content: flex-start; align-items: center;"><span class="label" style="font-weight: 600; color: #000; display: inline-block; width: 70px;">PHYSICAL:</span><span style="width: 10px; height: 10px; border: 1px solid #000; display: inline-block;"></span></div>
+              <div style="display: flex; justify-content: flex-start; align-items: center;"><span class="label" style="font-weight: 600; color: #000; display: inline-block; width: 70px;">X-RAY:</span><span style="width: 10px; height: 10px; border: 1px solid #000; display: inline-block;"></span></div>
             </div>
           </div>
           <table>
@@ -1210,14 +1246,16 @@ function EntryFormPage() {
           </table>
           <div class="in-words-section" style="display: flex; flex-direction: column; gap: 2px;">
             <p style="margin: 0;"><span>In Words:</span> Zero Taka Only</p>
-            ${activePatient.medical_report?.comments ? `<p style="margin: 4px 0 0 0; font-family: monospace; color: #334155; font-size: 11px;"><strong>Comments:</strong> ${activePatient.medical_report.comments}</p>` : ""}
           </div>
           <div class="footer-section">
-            ${
-                user?.signature_authorised_path
-                    ? `<div class="signature" style="border-top: none; margin-left: auto;"><img src="${user.signature_authorised_path}" style="height: 36px; object-fit: contain; display: block; margin: 0 auto 2px auto;" />Operator / Cashier</div>`
+            <div>
+              <div style="font-size: 16px; color: #000;">https://bestdiagnostic.com.bd/</div>
+              <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Developed by Nexovia IT Limited</div>
+            </div>
+            ${authSigUrl
+                    ? `<div class="signature" style="border-top: none; margin-left: auto;"><img src="${authSigUrl}" style="height: 36px; object-fit: contain; display: block; margin: 0 auto 2px auto;" />Operator / Cashier</div>`
                     : `<div class="signature" style="margin-left: auto;">Operator / Cashier</div>`
-            }
+                }
           </div>
           <script>
             function initBarcode() {
@@ -1239,6 +1277,7 @@ function EntryFormPage() {
               }, 300);
             }
           </script>
+          </div>
         </body>
         </html>
       `;
@@ -1331,8 +1370,8 @@ function EntryFormPage() {
         <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
       </head>
       <body>${Array.from({ length: labelCount })
-          .map(() =>
-              `
+                    .map(() =>
+                        `
 <div class="label-page">
   <div class="label-center-anchor">
     <div class="label-content">
@@ -1345,8 +1384,8 @@ function EntryFormPage() {
   </div>
 </div>
       `.trim(),
-          )
-          .join("")}
+                    )
+                    .join("")}
         <script>
           window.onload = function() {
             try {
@@ -1386,12 +1425,12 @@ function EntryFormPage() {
             subtitle="Register patient entries and preview documents."
         >
             {/* Top search bar to load existing records */}
-            <div className="card-surface p-4 mb-4 flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-2">
+            <div className="card-surface p-3 sm:p-4 mb-4 flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex flex-wrap items-center gap-2">
                     <Label className="text-xs uppercase tracking-wider text-muted-foreground">
                         Active Patient:
                     </Label>
-                    <span className="font-semibold text-primary font-mono">
+                    <span className="font-semibold text-primary font-mono text-xs sm:text-sm">
                         {activePatient
                             ? `${activePatient.first_name} (${activePatient.pax_id})`
                             : "None (Register new or search)"}
@@ -1402,7 +1441,7 @@ function EntryFormPage() {
                         </span>
                     )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                     {isEditing && (
                         <Button
                             size="sm"
@@ -1414,7 +1453,7 @@ function EntryFormPage() {
                     )}
                     <Input
                         placeholder="Search by ID (e.g. BEST000001)"
-                        className="w-56 h-8 text-xs"
+                        className="w-full sm:w-56 h-8 text-xs"
                         value={searchPaxId}
                         onChange={(e) => setSearchPaxId(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -1423,6 +1462,7 @@ function EntryFormPage() {
                         size="sm"
                         onClick={handleSearch}
                         disabled={searchLoading}
+                        className="w-full sm:w-auto"
                     >
                         {searchLoading ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
@@ -1434,7 +1474,7 @@ function EntryFormPage() {
                 </div>
             </div>
 
-            <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[220px_1fr]">
+            <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[220px_1fr]">
                 {/* Sidebar Actions */}
                 <aside className="card-surface min-w-0 p-3 h-fit space-y-3">
                     <div className="space-y-1">
@@ -1457,7 +1497,7 @@ function EntryFormPage() {
                         <div className="flex flex-wrap gap-2">
                             {canPrintCard && (
                                 <Button
-                                    className="gradient-primary shadow-md"
+                                    className="gradient-primary shadow-md w-full sm:w-auto"
                                     onClick={handlePrint}
                                     disabled={!activePatient}
                                 >
@@ -1470,14 +1510,14 @@ function EntryFormPage() {
                 </aside>
 
                 {/* Content Panel */}
-                <div className="card-surface min-w-0 p-6">
+                <div className="card-surface min-w-0 p-4 sm:p-6 overflow-hidden">
                     {/* TAB 1: New Entry registration form */}
                     {activeTab === "New Entry" && (
                         <div>
                             <h3 className="font-display text-base font-semibold mb-4">
                                 Patient Medical Registration
                             </h3>
-                            <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
+                            <div className="grid gap-x-8 gap-y-3 sm:gap-y-4 grid-cols-1 xl:grid-cols-2 min-w-0">
                                 <Field label="Date" error={fieldErrors.date}>
                                     <DatePicker
                                         value={date}
@@ -1487,7 +1527,7 @@ function EntryFormPage() {
                                         }}
                                         className={cn(
                                             fieldErrors.date &&
-                                                "border-red-500 ring-red-500",
+                                            "border-red-500 ring-red-500",
                                         )}
                                     />
                                 </Field>
@@ -1506,32 +1546,24 @@ function EntryFormPage() {
                                     label="Country"
                                     error={fieldErrors.country_id}
                                 >
-                                    <Select
+                                    <Combobox
                                         value={countryId}
-                                        onValueChange={(val) => {
+                                        onChange={(val) => {
                                             setCountryId(val);
                                             clear("country_id");
                                         }}
-                                    >
-                                        <SelectTrigger
-                                            className={cn(
-                                                fieldErrors.country_id &&
-                                                    "border-red-500 ring-red-500",
-                                            )}
-                                        >
-                                            <SelectValue placeholder="Select country" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {countries.map((c) => (
-                                                <SelectItem
-                                                    key={c.id}
-                                                    value={String(c.id)}
-                                                >
-                                                    {c.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                        options={countries.map((c) => ({
+                                            value: String(c.id),
+                                            label: c.name,
+                                        }))}
+                                        placeholder="Select country"
+                                        searchPlaceholder="Type to search country..."
+                                        emptyText="No country found."
+                                        className={cn(
+                                            fieldErrors.country_id &&
+                                            "border-red-500 ring-red-500",
+                                        )}
+                                    />
                                 </Field>
 
                                 <Field
@@ -1546,7 +1578,7 @@ function EntryFormPage() {
                                         }}
                                         className={cn(
                                             fieldErrors.nationality &&
-                                                "border-red-500 ring-red-500",
+                                            "border-red-500 ring-red-500",
                                         )}
                                     />
                                 </Field>
@@ -1563,7 +1595,7 @@ function EntryFormPage() {
                                         }}
                                         className={cn(
                                             fieldErrors.first_name &&
-                                                "border-red-500 ring-red-500",
+                                            "border-red-500 ring-red-500",
                                         )}
                                     />
                                 </Field>
@@ -1580,7 +1612,7 @@ function EntryFormPage() {
                                         }}
                                         className={cn(
                                             fieldErrors.last_name &&
-                                                "border-red-500 ring-red-500",
+                                            "border-red-500 ring-red-500",
                                         )}
                                     />
                                 </Field>
@@ -1596,7 +1628,7 @@ function EntryFormPage() {
                                         }}
                                         className={cn(
                                             fieldErrors.father_name &&
-                                                "border-red-500 ring-red-500",
+                                            "border-red-500 ring-red-500",
                                         )}
                                     />
                                 </Field>
@@ -1612,7 +1644,7 @@ function EntryFormPage() {
                                         }}
                                         className={cn(
                                             fieldErrors.mother_name &&
-                                                "border-red-500 ring-red-500",
+                                            "border-red-500 ring-red-500",
                                         )}
                                     />
                                 </Field>
@@ -1628,7 +1660,7 @@ function EntryFormPage() {
                                         }}
                                         className={cn(
                                             fieldErrors.mobile_no &&
-                                                "border-red-500 ring-red-500",
+                                            "border-red-500 ring-red-500",
                                         )}
                                     />
                                 </Field>
@@ -1644,7 +1676,7 @@ function EntryFormPage() {
                                         }}
                                         className={cn(
                                             fieldErrors.dob &&
-                                                "border-red-500 ring-red-500",
+                                            "border-red-500 ring-red-500",
                                         )}
                                     />
                                 </Field>
@@ -1660,7 +1692,7 @@ function EntryFormPage() {
                                         <SelectTrigger
                                             className={cn(
                                                 fieldErrors.sex &&
-                                                    "border-red-500 ring-red-500",
+                                                "border-red-500 ring-red-500",
                                             )}
                                         >
                                             <SelectValue placeholder="Select" />
@@ -1688,7 +1720,7 @@ function EntryFormPage() {
                                         }}
                                         className={cn(
                                             fieldErrors.passport_no &&
-                                                "border-red-500 ring-red-500",
+                                            "border-red-500 ring-red-500",
                                         )}
                                     />
                                 </Field>
@@ -1704,7 +1736,7 @@ function EntryFormPage() {
                                         }}
                                         className={cn(
                                             fieldErrors.visa_no &&
-                                                "border-red-500 ring-red-500",
+                                            "border-red-500 ring-red-500",
                                         )}
                                     />
                                 </Field>
@@ -1720,7 +1752,7 @@ function EntryFormPage() {
                                         }}
                                         className={cn(
                                             fieldErrors.issue_date &&
-                                                "border-red-500 ring-red-500",
+                                            "border-red-500 ring-red-500",
                                         )}
                                     />
                                 </Field>
@@ -1736,7 +1768,7 @@ function EntryFormPage() {
                                         }}
                                         className={cn(
                                             fieldErrors.job_applied &&
-                                                "border-red-500 ring-red-500",
+                                            "border-red-500 ring-red-500",
                                         )}
                                     />
                                 </Field>
@@ -1745,68 +1777,52 @@ function EntryFormPage() {
                                     label="Agency"
                                     error={fieldErrors.agency_id}
                                 >
-                                    <Select
+                                    <Combobox
                                         value={agencyId}
-                                        onValueChange={(val) => {
+                                        onChange={(val) => {
                                             handleAgencyChange(val);
                                             clear("agency_id");
                                         }}
-                                    >
-                                        <SelectTrigger
-                                            className={cn(
-                                                fieldErrors.agency_id &&
-                                                    "border-red-500 ring-red-500",
-                                            )}
-                                        >
-                                            <SelectValue placeholder="Select agency" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {agencies.map((a) => (
-                                                <SelectItem
-                                                    key={a.id}
-                                                    value={String(a.id)}
-                                                >
-                                                    {a.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                        options={agencies.map((a) => ({
+                                            value: String(a.id),
+                                            label: a.name,
+                                        }))}
+                                        placeholder="Select agency"
+                                        searchPlaceholder="Type to search agency..."
+                                        emptyText="No agency found."
+                                        className={cn(
+                                            fieldErrors.agency_id &&
+                                            "border-red-500 ring-red-500",
+                                        )}
+                                    />
                                 </Field>
 
                                 <Field label="MR" error={fieldErrors.mr_id}>
-                                    <Select
+                                    <Combobox
                                         value={mrId}
-                                        onValueChange={(val) => {
+                                        onChange={(val) => {
                                             setMrId(val);
                                             clear("mr_id");
                                         }}
-                                    >
-                                        <SelectTrigger
-                                            className={cn(
-                                                fieldErrors.mr_id &&
-                                                    "border-red-500 ring-red-500",
-                                            )}
-                                        >
-                                            <SelectValue placeholder="Select MR" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {mrs.map((m) => (
-                                                <SelectItem
-                                                    key={m.id}
-                                                    value={String(m.id)}
-                                                >
-                                                    {m.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                        options={mrs.map((m) => ({
+                                            value: String(m.id),
+                                            label: m.name,
+                                        }))}
+                                        placeholder="Select MR"
+                                        searchPlaceholder="Type to search MR..."
+                                        emptyText="No MR found."
+                                        className={cn(
+                                            fieldErrors.mr_id &&
+                                            "border-red-500 ring-red-500",
+                                        )}
+                                    />
                                 </Field>
 
                                 <Field
                                     label="Image"
                                     error={imageError || fieldErrors.image}
                                 >
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 min-w-0">
                                         <div className="w-16 h-20 rounded border border-slate-200 bg-white flex items-center justify-center overflow-hidden shrink-0">
                                             {imagePreviewUrl ? (
                                                 <img
@@ -1824,17 +1840,17 @@ function EntryFormPage() {
                                             type="button"
                                             variant="outline"
                                             className={cn(
-                                                "h-9 flex items-center gap-2",
+                                                "h-9 flex items-center gap-2 max-w-full text-xs sm:text-sm",
                                                 (imageError ||
                                                     fieldErrors.image) &&
-                                                    "border-red-500 text-red-500",
+                                                "border-red-500 text-red-500",
                                             )}
                                             onClick={() => {
                                                 setActiveCropField("image");
                                                 setIsCropDialogOpen(true);
                                             }}
                                         >
-                                            <Camera className="h-4 w-4" />
+                                            <Camera className="h-4 w-4 shrink-0" />
                                             Upload / Capture Image
                                         </Button>
                                     </div>
@@ -1847,7 +1863,7 @@ function EntryFormPage() {
                                         fieldErrors.fingerprint
                                     }
                                 >
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 min-w-0">
                                         <div className="w-16 h-20 rounded border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
                                             {fingerprintPreviewUrl ? (
                                                 <img
@@ -1861,15 +1877,15 @@ function EntryFormPage() {
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="flex flex-col gap-1.5">
+                                        <div className="flex flex-col gap-1.5 min-w-0 max-w-full">
                                             <Button
                                                 type="button"
                                                 variant="outline"
                                                 className={cn(
-                                                    "h-9 flex items-center gap-2",
+                                                    "h-9 flex items-center gap-2 max-w-full text-xs sm:text-sm",
                                                     (fingerprintError ||
                                                         fieldErrors.fingerprint) &&
-                                                        "border-red-500 text-red-500",
+                                                    "border-red-500 text-red-500",
                                                 )}
                                                 onClick={() =>
                                                     setIsScannerDialogOpen(
@@ -1877,7 +1893,7 @@ function EntryFormPage() {
                                                     )
                                                 }
                                             >
-                                                <Fingerprint className="h-4 w-4" />
+                                                <Fingerprint className="h-4 w-4 shrink-0" />
                                                 Scan Fingerprint
                                             </Button>
                                             <span className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
@@ -1885,20 +1901,20 @@ function EntryFormPage() {
                                                     className={cn(
                                                         "h-1.5 w-1.5 rounded-full",
                                                         scannerStatus ===
-                                                            "connected" &&
-                                                            "bg-emerald-500",
+                                                        "connected" &&
+                                                        "bg-emerald-500",
                                                         scannerStatus ===
-                                                            "scanning" &&
-                                                            "bg-blue-500 animate-pulse",
+                                                        "scanning" &&
+                                                        "bg-blue-500 animate-pulse",
                                                         scannerStatus ===
-                                                            "connecting" &&
-                                                            "bg-amber-400 animate-pulse",
+                                                        "connecting" &&
+                                                        "bg-amber-400 animate-pulse",
                                                         scannerStatus ===
-                                                            "disconnected" &&
-                                                            "bg-slate-400",
+                                                        "disconnected" &&
+                                                        "bg-slate-400",
                                                         scannerStatus ===
-                                                            "error" &&
-                                                            "bg-red-500",
+                                                        "error" &&
+                                                        "bg-red-500",
                                                     )}
                                                 />
                                                 {scannerStatus === "connected" &&
@@ -1932,7 +1948,7 @@ function EntryFormPage() {
                             </div>
 
                             <div className="mt-8 border-t border-border/60 pt-6">
-                                <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
+                                <div className="grid gap-x-8 gap-y-3 sm:gap-y-4 grid-cols-1 xl:grid-cols-2 min-w-0">
                                     <Field
                                         label="Medical Fee"
                                         error={fieldErrors.medical_fee}
@@ -1948,7 +1964,7 @@ function EntryFormPage() {
                                             }}
                                             className={cn(
                                                 fieldErrors.medical_fee &&
-                                                    "border-red-500 ring-red-500",
+                                                "border-red-500 ring-red-500",
                                             )}
                                         />
                                     </Field>
@@ -1967,7 +1983,7 @@ function EntryFormPage() {
                                             }}
                                             className={cn(
                                                 fieldErrors.received_amount &&
-                                                    "border-red-500 ring-red-500",
+                                                "border-red-500 ring-red-500",
                                             )}
                                         />
                                     </Field>
@@ -1993,7 +2009,7 @@ function EntryFormPage() {
                                             }}
                                             className={cn(
                                                 fieldErrors.niddle_charge &&
-                                                    "border-red-500 ring-red-500",
+                                                "border-red-500 ring-red-500",
                                             )}
                                         />
                                     </Field>
@@ -2012,7 +2028,7 @@ function EntryFormPage() {
                                                 }}
                                                 className={cn(
                                                     fieldErrors.in_words &&
-                                                        "border-red-500 ring-red-500",
+                                                    "border-red-500 ring-red-500",
                                                 )}
                                             />
                                         </Field>
@@ -2033,7 +2049,7 @@ function EntryFormPage() {
                                         }
                                     >
                                         {saveMutation.isPending ||
-                                        updateMutation.isPending ? (
+                                            updateMutation.isPending ? (
                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                         ) : (
                                             <Save className="mr-1 h-4 w-4" />
@@ -2082,7 +2098,7 @@ function EntryFormPage() {
                                                     className={cn(
                                                         "w-full h-full object-cover scale-x-[-1]",
                                                         !cameraActive &&
-                                                            "hidden",
+                                                        "hidden",
                                                     )}
                                                 />
                                                 {!cameraActive && (
@@ -2384,7 +2400,7 @@ function EntryFormPage() {
                                         )}
                                     </div>
                                 ) : scannerStatus === "connecting" ||
-                                  scannerStatus === "connected" ? (
+                                    scannerStatus === "connected" ? (
                                     <div className="flex flex-col items-center gap-3 text-center">
                                         <Loader2 className="h-10 w-10 animate-spin text-primary" />
                                         <p className="text-sm font-semibold">
@@ -2492,27 +2508,27 @@ function EntryFormPage() {
 
                     {/* TAB 6: Invoice receipt template */}
                     {activeTab === "Invoice" && (
-                        <div className="p-4 bg-white text-slate-900 border border-slate-200 rounded-xl space-y-3 font-sans">
+                        <div className="p-3 sm:p-4 bg-white text-slate-900 border border-slate-200 rounded-xl space-y-3 font-sans overflow-x-auto min-w-0">
                             {activePatient ? (
                                 <>
-                                    <div className="flex justify-between items-start border-b border-slate-200 pb-4 gap-4">
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-1">
+                                    <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center border-b border-slate-200 pb-4 gap-4">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2 mb-1">
                                                 <img
                                                     src={
                                                         user?.logo_path ||
                                                         "/assets/images/best-logo.png"
                                                     }
                                                     alt="Logo"
-                                                    className="h-10 object-contain"
+                                                    className="h-9 sm:h-10 object-contain shrink-0"
                                                 />
-                                                <div className="flex flex-col leading-tight">
-                                                    <span className="font-bold text-lg text-red-600 whitespace-nowrap">
+                                                <div className="flex flex-col leading-tight min-w-0">
+                                                    <span className="font-bold text-base sm:text-lg text-red-600 break-words">
                                                         {user?.company_name_en ||
                                                             "Best Health Diagnostic & Medical Center"}
                                                     </span>
                                                     {user?.company_name_bn && (
-                                                        <span className="font-bold text-sm text-[#19A54B] whitespace-nowrap">
+                                                        <span className="font-bold text-xs sm:text-sm text-[#19A54B] break-words">
                                                             {
                                                                 user.company_name_bn
                                                             }
@@ -2520,44 +2536,46 @@ function EntryFormPage() {
                                                     )}
                                                 </div>
                                             </div>
-                                            <p className="text-xs text-slate-500">
+                                            <p className="text-xs text-slate-500 break-words">
                                                 {user?.company_address_en ||
                                                     "1/A DIT Extension Road, Fakirapool, Dhaka-1000"}
                                             </p>
                                         </div>
-                                        <div className="text-right text-sm flex flex-col items-end gap-0.5 shrink-0">
-                                            <h3 className="font-bold text-sm">
-                                                PAYMENT RECEIPT
-                                            </h3>
-                                            <p className="font-mono text-xs text-slate-500 mb-1">
-                                                Invoice Date:{" "}
-                                                {activePatient.date}
-                                            </p>
-                                            <BarcodePreview
-                                                value={activePatient.pax_id}
-                                                displayValue={true}
-                                                height={20}
-                                            />
-                                        </div>
-                                        <div className="w-12 h-14 border border-slate-200 rounded overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
-                                            {activePatient.image_url ? (
-                                                <img
-                                                    src={
-                                                        activePatient.image_url
-                                                    }
-                                                    alt="Photo"
-                                                    className="w-full h-full object-cover"
+                                        <div className="flex items-center justify-between xl:justify-end gap-3 w-full xl:w-auto shrink-0 border-t xl:border-t-0 pt-2 xl:pt-0 border-slate-100">
+                                            <div className="text-left xl:text-right text-sm flex flex-col items-start xl:items-end gap-0.5">
+                                                <h3 className="font-bold text-sm">
+                                                    PAYMENT RECEIPT
+                                                </h3>
+                                                <p className="font-mono text-xs text-slate-500 mb-1">
+                                                    Invoice Date:{" "}
+                                                    {activePatient.date}
+                                                </p>
+                                                <BarcodePreview
+                                                    value={activePatient.pax_id}
+                                                    displayValue={true}
+                                                    height={20}
                                                 />
-                                            ) : (
-                                                <span className="text-[8px] text-slate-400">
-                                                    NO PHOTO
-                                                </span>
-                                            )}
+                                            </div>
+                                            <div className="w-12 h-14 border border-slate-200 rounded overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
+                                                {activePatient.image_url ? (
+                                                    <img
+                                                        src={
+                                                            activePatient.image_url
+                                                        }
+                                                        alt="Photo"
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <span className="text-[8px] text-slate-400">
+                                                        NO PHOTO
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4 text-sm border-b border-slate-100 pb-4">
-                                        <div className="space-y-1">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm border-b border-slate-100 pb-4">
+                                        <div className="space-y-1 min-w-0">
                                             <p>
                                                 <span className="text-slate-500 font-medium">
                                                     SL No.:
@@ -2601,9 +2619,9 @@ function EntryFormPage() {
                                                 <span className="font-semibold">
                                                     {activePatient.dob
                                                         ? activePatient.dob
-                                                              .split("-")
-                                                              .reverse()
-                                                              .join("/")
+                                                            .split("-")
+                                                            .reverse()
+                                                            .join("/")
                                                         : "N/A"}
                                                 </span>
                                             </p>
@@ -2635,15 +2653,17 @@ function EntryFormPage() {
                                                 </span>
                                             </p>
                                         </div>
-                                        <div className="border-l border-dashed border-slate-200 pl-4 space-y-1.5 font-medium">
+                                        <div className="border-t sm:border-t-0 sm:border-l border-dashed border-slate-200 pt-3 sm:pt-0 sm:pl-4 space-y-1.5 font-medium min-w-0">
                                             <div className="flex justify-between items-center text-xs text-slate-500 pb-1 border-b border-dashed border-slate-100">
                                                 <span>Reporting Date:</span>
                                                 <span>
                                                     {activePatient.date
-                                                        ? activePatient.date
-                                                              .split("-")
-                                                              .reverse()
-                                                              .join("/")
+                                                        ? computeReportingDate(
+                                                            activePatient.date,
+                                                        )
+                                                            .split("-")
+                                                            .reverse()
+                                                            .join("/")
                                                         : ""}
                                                 </span>
                                             </div>
@@ -2710,19 +2730,19 @@ function EntryFormPage() {
                                                 {Number(
                                                     activePatient.niddle_charge,
                                                 ) > 0 && (
-                                                    <tr>
-                                                        <td className="px-4 py-2">
-                                                            Needle Charge
-                                                        </td>
-                                                        <td className="px-4 py-2 text-right">
-                                                            {(
-                                                                Number(
-                                                                    activePatient.niddle_charge,
-                                                                ) || 0
-                                                            ).toLocaleString()}
-                                                        </td>
-                                                    </tr>
-                                                )}
+                                                        <tr>
+                                                            <td className="px-4 py-2">
+                                                                Needle Charge
+                                                            </td>
+                                                            <td className="px-4 py-2 text-right">
+                                                                {(
+                                                                    Number(
+                                                                        activePatient.niddle_charge,
+                                                                    ) || 0
+                                                                ).toLocaleString()}
+                                                            </td>
+                                                        </tr>
+                                                    )}
                                                 <tr className="font-semibold bg-slate-50 border-t border-slate-200">
                                                     <td className="px-4 py-2">
                                                         Total Amount Due
@@ -2778,32 +2798,30 @@ function EntryFormPage() {
                                                     ),
                                                 )}
                                         </p>
-                                        {activePatient.medical_report
-                                            ?.comments && (
-                                            <p className="text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 font-mono">
-                                                <strong className="text-slate-500 not-italic">
-                                                    Comments:
-                                                </strong>{" "}
-                                                {
-                                                    activePatient.medical_report
-                                                        .comments
-                                                }
-                                            </p>
-                                        )}
                                     </div>
 
-                                    <div className="flex justify-end pt-3 text-sm">
-                                        <div className="text-center w-48 border-t border-slate-300 pt-2 text-xs text-slate-500 flex flex-col items-center">
-                                            {user?.signature_authorised_path && (
-                                                <img
-                                                    src={
-                                                        user.signature_authorised_path
-                                                    }
-                                                    className="h-12 w-auto object-contain mb-1"
-                                                    alt="Authorised Signature"
-                                                />
-                                            )}
-                                            <span>Operator / Cashier</span>
+                                    <div className="flex justify-end pt-4 text-sm">
+                                        <div className="text-center w-48 text-xs text-slate-600 flex flex-col items-center">
+                                            <div className="h-12 flex items-end justify-center mb-1">
+                                                {user?.signature_authorised_path ||
+                                                user?.signature_path ||
+                                                siteSettings?.signature_authorised_path ? (
+                                                    <img
+                                                        src={
+                                                            user?.signature_authorised_path ||
+                                                            user?.signature_path ||
+                                                            siteSettings?.signature_authorised_path
+                                                        }
+                                                        className="h-12 w-auto object-contain"
+                                                        alt="Authorised Signature"
+                                                    />
+                                                ) : (
+                                                    <div className="h-6" />
+                                                )}
+                                            </div>
+                                            <div className="w-full border-t border-dashed border-slate-400 pt-1 text-center font-semibold text-[11px] uppercase tracking-wider text-slate-700">
+                                                Operator / Cashier
+                                            </div>
                                         </div>
                                     </div>
                                 </>
@@ -2817,27 +2835,27 @@ function EntryFormPage() {
 
                     {/* TAB 6.5: Invoice Zero receipt template */}
                     {activeTab === "Invoice Zero" && (
-                        <div className="p-4 bg-white text-slate-900 border border-slate-200 rounded-xl space-y-3 font-sans">
+                        <div className="p-3 sm:p-4 bg-white text-slate-900 border border-slate-200 rounded-xl space-y-3 font-sans overflow-x-auto min-w-0">
                             {activePatient ? (
                                 <>
-                                    <div className="flex justify-between items-start border-b border-slate-200 pb-4 gap-4">
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-1">
+                                    <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center border-b border-slate-200 pb-4 gap-4">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2 mb-1">
                                                 <img
                                                     src={
                                                         user?.logo_path ||
                                                         "/assets/images/best-logo.png"
                                                     }
                                                     alt="Logo"
-                                                    className="h-10 object-contain"
+                                                    className="h-9 sm:h-10 object-contain shrink-0"
                                                 />
-                                                <div className="flex flex-col leading-tight">
-                                                    <span className="font-bold text-lg text-red-600 whitespace-nowrap">
+                                                <div className="flex flex-col leading-tight min-w-0">
+                                                    <span className="font-bold text-base sm:text-lg text-red-600 break-words">
                                                         {user?.company_name_en ||
                                                             "Best Health Diagnostic & Medical Center"}
                                                     </span>
                                                     {user?.company_name_bn && (
-                                                        <span className="font-bold text-sm text-[#19A54B] whitespace-nowrap">
+                                                        <span className="font-bold text-xs sm:text-sm text-[#19A54B] break-words">
                                                             {
                                                                 user.company_name_bn
                                                             }
@@ -2845,44 +2863,46 @@ function EntryFormPage() {
                                                     )}
                                                 </div>
                                             </div>
-                                            <p className="text-xs text-slate-500">
+                                            <p className="text-xs text-slate-500 break-words">
                                                 {user?.company_address_en ||
                                                     "1/A DIT Extension Road, Fakirapool, Dhaka-1000"}
                                             </p>
                                         </div>
-                                        <div className="text-right text-sm flex flex-col items-end gap-0.5 shrink-0">
-                                            <h3 className="font-bold text-sm">
-                                                PAYMENT RECEIPT
-                                            </h3>
-                                            <p className="font-mono text-xs text-slate-500 mb-1">
-                                                Invoice Date:{" "}
-                                                {activePatient.date}
-                                            </p>
-                                            <BarcodePreview
-                                                value={activePatient.pax_id}
-                                                displayValue={true}
-                                                height={20}
-                                            />
-                                        </div>
-                                        <div className="w-12 h-14 border border-slate-200 rounded overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
-                                            {activePatient.image_url ? (
-                                                <img
-                                                    src={
-                                                        activePatient.image_url
-                                                    }
-                                                    alt="Photo"
-                                                    className="w-full h-full object-cover"
+                                        <div className="flex items-center justify-between xl:justify-end gap-3 w-full xl:w-auto shrink-0 border-t xl:border-t-0 pt-2 xl:pt-0 border-slate-100">
+                                            <div className="text-left xl:text-right text-sm flex flex-col items-start xl:items-end gap-0.5">
+                                                <h3 className="font-bold text-sm">
+                                                    PAYMENT RECEIPT
+                                                </h3>
+                                                <p className="font-mono text-xs text-slate-500 mb-1">
+                                                    Invoice Date:{" "}
+                                                    {activePatient.date}
+                                                </p>
+                                                <BarcodePreview
+                                                    value={activePatient.pax_id}
+                                                    displayValue={true}
+                                                    height={20}
                                                 />
-                                            ) : (
-                                                <span className="text-[8px] text-slate-400">
-                                                    NO PHOTO
-                                                </span>
-                                            )}
+                                            </div>
+                                            <div className="w-12 h-14 border border-slate-200 rounded overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
+                                                {activePatient.image_url ? (
+                                                    <img
+                                                        src={
+                                                            activePatient.image_url
+                                                        }
+                                                        alt="Photo"
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <span className="text-[8px] text-slate-400">
+                                                        NO PHOTO
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4 text-sm border-b border-slate-100 pb-4">
-                                        <div className="space-y-1">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm border-b border-slate-100 pb-4">
+                                        <div className="space-y-1 min-w-0">
                                             <p>
                                                 <span className="text-slate-500 font-medium">
                                                     SL No.:
@@ -2926,9 +2946,9 @@ function EntryFormPage() {
                                                 <span className="font-semibold">
                                                     {activePatient.dob
                                                         ? activePatient.dob
-                                                              .split("-")
-                                                              .reverse()
-                                                              .join("/")
+                                                            .split("-")
+                                                            .reverse()
+                                                            .join("/")
                                                         : "N/A"}
                                                 </span>
                                             </p>
@@ -2960,15 +2980,17 @@ function EntryFormPage() {
                                                 </span>
                                             </p>
                                         </div>
-                                        <div className="border-l border-dashed border-slate-200 pl-4 space-y-1.5 font-medium">
+                                        <div className="border-t sm:border-t-0 sm:border-l border-dashed border-slate-200 pt-3 sm:pt-0 sm:pl-4 space-y-1.5 font-medium min-w-0">
                                             <div className="flex justify-between items-center text-xs text-slate-500 pb-1 border-b border-dashed border-slate-100">
                                                 <span>Reporting Date:</span>
                                                 <span>
                                                     {activePatient.date
-                                                        ? activePatient.date
-                                                              .split("-")
-                                                              .reverse()
-                                                              .join("/")
+                                                        ? computeReportingDate(
+                                                            activePatient.date,
+                                                        )
+                                                            .split("-")
+                                                            .reverse()
+                                                            .join("/")
                                                         : ""}
                                                 </span>
                                             </div>
@@ -3063,32 +3085,30 @@ function EntryFormPage() {
                                             </span>{" "}
                                             Zero Taka Only
                                         </p>
-                                        {activePatient.medical_report
-                                            ?.comments && (
-                                            <p className="text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 font-mono">
-                                                <strong className="text-slate-500 not-italic">
-                                                    Comments:
-                                                </strong>{" "}
-                                                {
-                                                    activePatient.medical_report
-                                                        .comments
-                                                }
-                                            </p>
-                                        )}
                                     </div>
 
-                                    <div className="flex justify-end pt-3 text-sm">
-                                        <div className="text-center w-48 border-t border-slate-300 pt-2 text-xs text-slate-500 flex flex-col items-center">
-                                            {user?.signature_authorised_path && (
-                                                <img
-                                                    src={
-                                                        user.signature_authorised_path
-                                                    }
-                                                    className="h-12 w-auto object-contain mb-1"
-                                                    alt="Authorised Signature"
-                                                />
-                                            )}
-                                            <span>Operator / Cashier</span>
+                                    <div className="flex justify-end pt-4 text-sm">
+                                        <div className="text-center w-48 text-xs text-slate-600 flex flex-col items-center">
+                                            <div className="h-12 flex items-end justify-center mb-1">
+                                                {user?.signature_authorised_path ||
+                                                user?.signature_path ||
+                                                siteSettings?.signature_authorised_path ? (
+                                                    <img
+                                                        src={
+                                                            user?.signature_authorised_path ||
+                                                            user?.signature_path ||
+                                                            siteSettings?.signature_authorised_path
+                                                        }
+                                                        className="h-12 w-auto object-contain"
+                                                        alt="Authorised Signature"
+                                                    />
+                                                ) : (
+                                                    <div className="h-6" />
+                                                )}
+                                            </div>
+                                            <div className="w-full border-t border-dashed border-slate-400 pt-1 text-center font-semibold text-[11px] uppercase tracking-wider text-slate-700">
+                                                Operator / Cashier
+                                            </div>
                                         </div>
                                     </div>
                                 </>

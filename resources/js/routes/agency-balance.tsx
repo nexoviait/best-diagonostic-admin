@@ -329,10 +329,10 @@ function AgencyBalancePage() {
             <div class="signature-line">Prepared By</div>
           </div>
           <div class="signature-box">
-            ${settings?.signature_authorised_path ? 
-              `<img src="${settings.signature_authorised_path}" class="signature-img" />` : 
-              `<div style="height: 40px;"></div>`
-            }
+            ${settings?.signature_authorised_path ?
+        `<img src="${settings.signature_authorised_path}" class="signature-img" />` :
+        `<div style="height: 40px;"></div>`
+      }
             <div class="signature-line">Authorized Cashier</div>
           </div>
         </div>
@@ -500,65 +500,65 @@ function AgencyBalancePage() {
       </div>
 
       {canAddPayment && (
-      <div className="card-surface p-5 space-y-4">
-        <h3 className="font-display text-base font-semibold">Record Payment</h3>
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <Label>Select Agency</Label>
-            <Select value={payAgencyId} onValueChange={setPayAgencyId}>
-              <SelectTrigger><SelectValue placeholder="Choose agency..." /></SelectTrigger>
-              <SelectContent>
-                {agencies.map((a) => (
-                  <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Receive Amount (৳)</Label>
-            <Input type="number" value={payAmount || ""} onChange={(e) => setPayAmount(Number(e.target.value))} />
-          </div>
-
-          {/* Smart outstanding dues notification helper block */}
-          {payAgencyId && payAgencyId !== "all" && (
-            <div className="md:col-span-2 flex items-center justify-between bg-teal-50 border border-teal-200 p-3 rounded-lg">
-              <div className="text-xs text-slate-700">
-                Current outstanding balance for this agency: <strong className="text-destructive font-bold">৳ {Number(payAgencyDues).toLocaleString()}</strong>
-              </div>
-              {payAgencyDues > 0 && (
-                <Button 
-                  type="button" 
-                  variant="link" 
-                  size="sm" 
-                  className="text-teal-600 hover:text-teal-700 p-0 h-auto text-xs font-semibold underline"
-                  onClick={() => setPayAmount(payAgencyDues)}
-                >
-                  Pay Full Dues
-                </Button>
-              )}
+        <div className="card-surface p-5 space-y-4">
+          <h3 className="font-display text-base font-semibold">Record Payment</h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label>Select Agency</Label>
+              <Select value={payAgencyId} onValueChange={setPayAgencyId}>
+                <SelectTrigger><SelectValue placeholder="Choose agency..." /></SelectTrigger>
+                <SelectContent>
+                  {agencies.map((a) => (
+                    <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          )}
+            <div>
+              <Label>Receive Amount (৳)</Label>
+              <Input type="number" value={payAmount || ""} onChange={(e) => setPayAmount(Number(e.target.value))} />
+            </div>
 
-          <div>
-            <Label>In Words</Label>
-            <Input placeholder="Taka …" value={payWords} onChange={(e) => setPayWords(e.target.value)} />
+            {/* Smart outstanding dues notification helper block */}
+            {payAgencyId && payAgencyId !== "all" && (
+              <div className="md:col-span-2 flex items-center justify-between bg-teal-50 border border-teal-200 p-3 rounded-lg">
+                <div className="text-xs text-slate-700">
+                  Current outstanding balance for this agency: <strong className="text-destructive font-bold">৳ {Number(payAgencyDues).toLocaleString()}</strong>
+                </div>
+                {payAgencyDues > 0 && (
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="text-teal-600 hover:text-teal-700 p-0 h-auto text-xs font-semibold underline"
+                    onClick={() => setPayAmount(payAgencyDues)}
+                  >
+                    Pay Full Dues
+                  </Button>
+                )}
+              </div>
+            )}
+
+            <div>
+              <Label>In Words</Label>
+              <Input placeholder="Taka …" value={payWords} onChange={(e) => setPayWords(e.target.value)} />
+            </div>
+            <div>
+              <Label>Month of Payment</Label>
+              <Input type="month" value={payMonth} onChange={(e) => setPayMonth(e.target.value)} />
+            </div>
           </div>
-          <div>
-            <Label>Month of Payment</Label>
-            <Input type="month" value={payMonth} onChange={(e) => setPayMonth(e.target.value)} />
+          <div className="pt-2 text-right">
+            <Button
+              className="gradient-primary"
+              onClick={handleRecordPayment}
+              disabled={recordPaymentMutation.isPending}
+            >
+              {recordPaymentMutation.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
+              Submit
+            </Button>
           </div>
         </div>
-        <div className="pt-2 text-right">
-          <Button
-            className="gradient-primary"
-            onClick={handleRecordPayment}
-            disabled={recordPaymentMutation.isPending}
-          >
-            {recordPaymentMutation.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
-            Submit
-          </Button>
-        </div>
-      </div>
       )}
     </DashboardShell>
   );

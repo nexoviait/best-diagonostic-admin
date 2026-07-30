@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { Loader2, Download, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MedicalReportView } from "@/components/medical-report-view";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/search-passport")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -17,7 +18,6 @@ export const Route = createFileRoute("/search-passport")({
 
 function SearchPassportPage() {
   const { PassportNo } = Route.useSearch() as { PassportNo: string };
-  const [showHeaderFooter, setShowHeaderFooter] = useState(true);
   const [scale, setScale] = useState(1);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -114,6 +114,7 @@ function SearchPassportPage() {
       pdf.save(`Medical_Report_${PassportNo}.pdf`);
     } catch (error) {
       console.error("Failed to generate PDF dynamically:", error);
+      toast.error("Couldn't generate the PDF directly — opening print dialog instead. Use \"Save as PDF\" there.");
       window.print();
     }
   };
@@ -127,34 +128,25 @@ function SearchPassportPage() {
         </Button>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-6">
-          <label className="flex items-center justify-between sm:justify-start gap-2.5 cursor-pointer select-none bg-slate-50 px-3.5 py-2 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors">
-            <span className="text-xs font-bold text-slate-700">Print Header & Footer</span>
-            <input
-              type="checkbox"
-              checked={showHeaderFooter}
-              onChange={(e) => setShowHeaderFooter(e.target.checked)}
-              className="h-4.5 w-4.5 rounded border-slate-300 text-teal-600 focus:ring-teal-500 accent-teal-600 cursor-pointer"
-            />
-          </label>
-
           <div className="flex gap-2 w-full sm:w-auto">
-            <Button onClick={() => window.print()} className="flex-1 sm:flex-initial bg-[#0f172a] hover:bg-[#1e293b] text-xs gap-1.5 font-bold justify-center">
+            <Button onClick={() => window.print()} className="flex-1 sm:flex-initial gradient-primary text-xs gap-1.5 font-bold justify-center">
               <Printer className="h-3.5 w-3.5" /> Print Report
             </Button>
-            <Button onClick={handleDownloadPDF} className="flex-1 sm:flex-initial bg-[#0d9488] hover:bg-[#0b7a70] text-xs gap-1.5 font-bold justify-center">
+            <Button onClick={handleDownloadPDF} className="flex-1 sm:flex-initial gradient-primary text-xs gap-1.5 font-bold justify-center">
               <Download className="h-3.5 w-3.5" /> Download PDF
             </Button>
           </div>
         </div>
       </div>
 
-      <MedicalReportView
-        patient={patient}
-        settings={settings}
-        showHeaderFooter={showHeaderFooter}
-        scale={scale}
-        containerRef={containerRef}
-      />
+      <div className="flex justify-center min-w-0 overflow-hidden">
+        <MedicalReportView
+          patient={patient}
+          settings={settings}
+          scale={scale}
+          containerRef={containerRef}
+        />
+      </div>
 
       {/* Web Footer / Copyright (no-print) */}
       <div className="mx-auto max-w-[794px] text-center mt-6 text-[10px] text-gray-500 space-y-0.5 no-print leading-relaxed select-none">

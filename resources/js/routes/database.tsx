@@ -15,6 +15,10 @@ import { toastApiError } from "@/lib/toast-error";
 
 export const Route = createFileRoute("/database")({
   component: DatabasePage,
+  validateSearch: (search: Record<string, unknown>): { q?: string; field?: string } => ({
+    q: typeof search.q === "string" ? search.q : undefined,
+    field: typeof search.field === "string" ? search.field : undefined,
+  }),
 });
 
 function FilterCard({
@@ -42,10 +46,11 @@ function FilterCard({
 function DatabasePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const searchParams = Route.useSearch();
 
   // Search parameters
-  const [searchField, setSearchField] = useState("pax");
-  const [searchValue, setSearchValue] = useState("");
+  const [searchField, setSearchField] = useState(searchParams.field || "pax");
+  const [searchValue, setSearchValue] = useState(searchParams.q || "");
 
   const getTodayDate = () => {
     const d = new Date();
@@ -62,7 +67,23 @@ function DatabasePage() {
   const [mrId, setMrId] = useState("all");
   const [creatorId, setCreatorId] = useState("all");
 
-  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [filters, setFilters] = useState<Record<string, string>>(
+    searchParams.q
+      ? { search_field: searchParams.field || "pax", search_value: searchParams.q }
+      : {},
+  );
+
+  // Re-run the ID search whenever the top header search bar sends a new query
+  // to this page (covers both a fresh navigation and searching again while
+  // already on the Database page).
+  useEffect(() => {
+    if (!searchParams.q) return;
+    const field = searchParams.field || "pax";
+    setSearchField(field);
+    setSearchValue(searchParams.q);
+    setFilters({ search_field: field, search_value: searchParams.q });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.q, searchParams.field]);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -460,25 +481,25 @@ function DatabasePage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border/60 text-left text-xs uppercase tracking-wider text-muted-foreground">
-                  <th className="px-5 py-3 font-medium">SL</th>
-                  <th className="px-5 py-3 font-medium">Entry Date</th>
-                  <th className="px-5 py-3 font-medium">Pax ID</th>
-                  <th className="px-5 py-3 font-medium">Name</th>
-                  <th className="px-5 py-3 font-medium">Agency</th>
-                  <th className="px-5 py-3 font-medium">Report Status</th>
-                  <th className="px-5 py-3 font-medium">X-Ray Result</th>
-                  <th className="px-5 py-3 text-right font-medium">Total Fee (৳)</th>
-                  <th className="px-5 py-3 text-right font-medium">Received (৳)</th>
-                  <th className="px-5 py-3 text-right font-medium">Due (৳)</th>
-                  <th className="px-5 py-3 font-medium">Created By</th>
-                  <th className="px-5 py-3 text-center font-medium">Actions</th>
+                <tr className="border-b border-border/60 text-left text-xs uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  <th className="px-4 py-3 font-medium">SL</th>
+                  <th className="px-4 py-3 font-medium">Entry Date</th>
+                  <th className="px-4 py-3 font-medium">Pax ID</th>
+                  <th className="px-4 py-3 font-medium">Name</th>
+                  <th className="px-4 py-3 font-medium">Agency</th>
+                  <th className="px-4 py-3 font-medium">Report Status</th>
+                  <th className="px-4 py-3 font-medium">X-Ray Result</th>
+                  <th className="px-4 py-3 text-right font-medium">Total Fee (৳)</th>
+                  <th className="px-4 py-3 text-right font-medium">Received (৳)</th>
+                  <th className="px-4 py-3 text-right font-medium">Due (৳)</th>
+                  <th className="px-4 py-3 font-medium">Created By</th>
+                  <th className="px-4 py-3 text-center font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={12} className="px-5 py-6 text-center text-muted-foreground">
+                    <td colSpan={12} className="px-4 py-6 text-center text-muted-foreground">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 className="h-4 w-4 animate-spin text-primary" />
                         Loading records...
@@ -487,49 +508,49 @@ function DatabasePage() {
                   </tr>
                 ) : paginatedPatients.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="px-5 py-6 text-center text-muted-foreground">
+                    <td colSpan={12} className="px-4 py-6 text-center text-muted-foreground">
                       No matching patient records found.
                     </td>
                   </tr>
                 ) : (
                   paginatedPatients.map((r, index) => {
                     const serialNum = (currentPage - 1) * itemsPerPage + index + 1;
-                    const reportStatus = r.medicalReport?.final_status || "Pending";
+                    const reportStatus = r.medicalReport?.final_status || "Held up";
                     const xrayStatus = r.xrayReport?.result || "Pending";
                     return (
-                      <tr key={r.id} className="border-b border-border/40 last:border-0 hover:bg-muted/40">
-                        <td className="px-5 py-3 text-muted-foreground">{serialNum}</td>
-                        <td className="px-5 py-3 text-muted-foreground">{r.date}</td>
-                        <td className="px-5 py-3 font-mono text-xs text-primary font-semibold">{r.pax_id}</td>
-                        <td className="px-5 py-3 font-medium">{r.first_name} {r.last_name || ""}</td>
-                        <td className="px-5 py-3 text-muted-foreground">{r.agency?.name || "N/A"}</td>
-                        <td className="px-5 py-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
-                            reportStatus === "FIT"
+                      <tr key={r.id} className="border-b border-border/40 last:border-0 hover:bg-muted/40 whitespace-nowrap">
+                        <td className="px-4 py-3 text-muted-foreground">{serialNum}</td>
+                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{r.date}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-primary font-semibold whitespace-nowrap">{r.pax_id}</td>
+                        <td className="px-4 py-3 font-medium whitespace-nowrap">{r.first_name} {r.last_name || ""}</td>
+                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{r.agency?.name || "N/A"}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className={`inline-block whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                            reportStatus.toUpperCase() === "FIT"
                               ? "bg-green-50 text-green-700 border-green-200"
-                              : reportStatus === "UNFIT"
+                              : reportStatus.toUpperCase() === "UNFIT"
                               ? "bg-red-50 text-red-700 border-red-200"
                               : "bg-amber-50 text-amber-700 border-amber-200"
                           }`}>
                             {reportStatus}
                           </span>
                         </td>
-                        <td className="px-5 py-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
-                            xrayStatus === "Normal"
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className={`inline-block whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                            xrayStatus === "Fit"
                               ? "bg-green-50 text-green-700 border-green-200"
-                              : xrayStatus === "Abnormal"
+                              : xrayStatus === "Unfit"
                               ? "bg-red-50 text-red-700 border-red-200"
                               : "bg-slate-50 text-slate-700 border-slate-200"
                           }`}>
                             {xrayStatus}
                           </span>
                         </td>
-                        <td className="px-5 py-3 text-right font-medium">{(Number(r.medical_fee) || 0).toLocaleString()}</td>
-                        <td className="px-5 py-3 text-right text-success font-medium">{(Number(r.received_amount) || 0).toLocaleString()}</td>
-                        <td className="px-5 py-3 text-right text-destructive font-medium">{(Number(r.due_amount) || 0).toLocaleString()}</td>
-                        <td className="px-5 py-3 text-muted-foreground">{r.creator?.name || "N/A"}</td>
-                        <td className="px-5 py-3">
+                        <td className="px-4 py-3 text-right font-medium whitespace-nowrap">{(Number(r.medical_fee) || 0).toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right text-success font-medium whitespace-nowrap">{(Number(r.received_amount) || 0).toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right text-destructive font-medium whitespace-nowrap">{(Number(r.due_amount) || 0).toLocaleString()}</td>
+                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{r.creator?.name || "N/A"}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center justify-center gap-1.5">
                             {/* Medical Report Action */}
                             <Button
