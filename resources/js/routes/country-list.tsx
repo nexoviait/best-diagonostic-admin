@@ -135,7 +135,7 @@ function CountryListPage() {
           <h3 className="font-display text-base font-semibold">
             {selectedId ? "Edit Country" : "Add Country"}
           </h3>
-          <div className="mt-4 space-y-3">
+          <div className="dark-fields-panel mt-4 space-y-3 rounded-xl border border-black/20 bg-[#5c5c5c] p-4">
             <div>
               <Label>ID</Label>
               <Input placeholder={selectedId || "Auto"} disabled />

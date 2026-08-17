@@ -8,9 +8,20 @@ use Illuminate\Support\Facades\Validator;
 
 class AgencyController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(Agency::orderBy('name', 'asc')->get());
+        $query = Agency::orderBy('name', 'asc');
+
+        // One-time (walk-in) agencies are hidden by default so they don't
+        // permanently clutter the "pick an agency" pickers (e.g. Entry
+        // Form) — pass ?include_one_time=1 to fetch the full list, used by
+        // the Agency List management page and the Database filter dropdown
+        // so historical records stay findable.
+        if (!$request->boolean('include_one_time')) {
+            $query->where('is_one_time', false);
+        }
+
+        return response()->json($query->get());
     }
 
     public function store(Request $request)
@@ -23,6 +34,7 @@ class AgencyController extends Controller
             'mobile_no' => 'nullable|string',
             'address' => 'nullable|string',
             'status' => 'nullable|string',
+            'is_one_time' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -37,6 +49,7 @@ class AgencyController extends Controller
             'address' => $request->address,
             'price' => $request->price ?? 0.00,
             'status' => $request->status ?? '1',
+            'is_one_time' => $request->boolean('is_one_time'),
         ]);
 
         return response()->json([
@@ -69,6 +82,7 @@ class AgencyController extends Controller
             'mobile_no' => 'nullable|string',
             'address' => 'nullable|string',
             'status' => 'nullable|string',
+            'is_one_time' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -83,6 +97,7 @@ class AgencyController extends Controller
             'address' => $request->address,
             'price' => $request->price ?? $agency->price,
             'status' => $request->status ?? $agency->status,
+            'is_one_time' => $request->has('is_one_time') ? $request->boolean('is_one_time') : $agency->is_one_time,
         ]);
 
         return response()->json([

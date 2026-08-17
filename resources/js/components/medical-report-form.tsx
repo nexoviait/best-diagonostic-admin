@@ -17,18 +17,18 @@ interface MedicalReportFormProps {
   mode: "general" | "malaysia";
 }
 
-const testOptions = ["Negative", "Positive", "N/A"];
-const vdrlOptions = ["Non-Reactive", "Reactive", "N/A"];
-const herniaOptions = ["Absent", "Present", "N/A"];
+const testOptions = ["N/A", "Negative", "Positive"];
+const vdrlOptions = ["N/A", "Non-Reactive", "Reactive"];
+const herniaOptions = ["N/A", "Absent", "Present"];
 const bloodGroupOptions = ["O+ve", "A+ve", "B+ve", "AB+ve", "O-ve", "A-ve", "B-ve", "AB-ve"];
-const ecgOptions = ["Normal", "Abnormal", "N/A"];
-const varicoseVeinsOptions = ["Negative", "Positive", "N/A"];
-const psychiatryOptions = ["Normal", "Abnormal", "N/A"];
+const ecgOptions = ["N/A", "Normal", "Abnormal"];
+const varicoseVeinsOptions = ["N/A", "Negative", "Positive"];
+const psychiatryOptions = ["N/A", "Normal", "Abnormal"];
 
 const heightOptions = (() => {
   const opts: string[] = [];
   for (let ft = 4; ft <= 6; ft++) {
-    for (let inch = 1; inch <= 11; inch++) {
+    for (let inch = 0; inch <= 11; inch++) {
       opts.push(`${String(ft).padStart(2, "0")} Feet ${String(inch).padStart(2, "0")} Inch`);
     }
   }
@@ -358,10 +358,12 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
     }
   };
 
-  // NEXT / PREVIOUS Navigation sorting by ID descending (implied chronological/newest)
+  // NEXT / PREVIOUS Navigation — sorted ascending by ID so "NEXT" always
+  // moves to the next-higher (newer) patient ID and "PREVIOUS" moves to the
+  // next-lower (older) one, matching what the button labels say.
   const handleNext = () => {
     if (!patient || !allPatients.length) return;
-    const sorted = [...allPatients].sort((a, b) => b.id - a.id);
+    const sorted = [...allPatients].sort((a, b) => a.id - b.id);
     const currentIndex = sorted.findIndex((p) => p.id === patient.id);
     if (currentIndex >= 0 && currentIndex < sorted.length - 1) {
       const nextPatient = sorted[currentIndex + 1];
@@ -374,7 +376,7 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
 
   const handlePrevious = () => {
     if (!patient || !allPatients.length) return;
-    const sorted = [...allPatients].sort((a, b) => b.id - a.id);
+    const sorted = [...allPatients].sort((a, b) => a.id - b.id);
     const currentIndex = sorted.findIndex((p) => p.id === patient.id);
     if (currentIndex > 0) {
       const prevPatient = sorted[currentIndex - 1];
@@ -539,8 +541,9 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
           <div className="card-surface min-w-0 p-6 space-y-6">
             {activeTab === "Edit Report" && (
               <>
+              <div className="dark-fields-panel rounded-xl border border-black/20 bg-[#5c5c5c] p-4 sm:p-6 space-y-5">
                 {/* Top Patient Meta Grid */}
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 border-b border-border/60 pb-5">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 border-b border-white/20 pb-5">
                   <div>
                     <Label className="text-[10px] text-muted-foreground uppercase">Patient ID</Label>
                     <Input value={patient.pax_id} disabled className="bg-muted/40 font-mono" />
@@ -572,12 +575,20 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
                   {/* Column 1 Inputs */}
                   <div className="space-y-3">
                     <FormField label="Height">
-                      <Select value={height} onValueChange={setHeight}>
-                        <SelectTrigger className="h-8.5"><SelectValue placeholder="Select height" /></SelectTrigger>
-                        <SelectContent>
-                          {heightOptions.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex gap-1.5">
+                        <Select value={height} onValueChange={setHeight}>
+                          <SelectTrigger className="h-8.5 w-[46%] shrink-0"><SelectValue placeholder="Select" /></SelectTrigger>
+                          <SelectContent>
+                            {heightOptions.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          value={height}
+                          onChange={(e) => setHeight(e.target.value)}
+                          placeholder="or type e.g. 05 Feet 06 Inch"
+                          className="min-w-0 flex-1"
+                        />
+                      </div>
                     </FormField>
                     <FormField label="Eye Right">
                       <Input value={eyeRight} onChange={(e) => setEyeRight(e.target.value)} />
@@ -645,7 +656,7 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
                     <FormField label="Factor">
                       <Input value={factor} onChange={(e) => setFactor(e.target.value)} />
                     </FormField>
-                    <FormField label="RBC">
+                    <FormField label="R.B.S">
                       <Input value={rbs} onChange={(e) => setRbs(e.target.value)} />
                     </FormField>
                     <FormField label="ESR">
@@ -822,9 +833,10 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
                     </FormField>
                   </div>
                 </div>
+              </div>
 
                 {/* Comments block */}
-                <div className="border-t border-border/40 pt-4 space-y-3">
+                <div className="dark-fields-panel mt-6 rounded-xl border border-black/20 bg-[#5c5c5c] p-4 sm:p-6 space-y-3">
                   <div>
                     <Label>Comments</Label>
                     <Textarea

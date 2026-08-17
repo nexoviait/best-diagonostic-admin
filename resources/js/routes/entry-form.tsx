@@ -23,15 +23,17 @@ import {
     Fingerprint,
     CheckCircle2,
     AlertCircle,
+    Plus,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import JsBarcode from "jsbarcode";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { toast } from "sonner";
 import { toastApiError } from "@/lib/toast-error";
 import { FieldError } from "@/components/ui/field-error";
 import { validateImageFile } from "@/lib/validate-image";
+import { savePatientPhotoToFolder } from "@/lib/patientPhotoFolder";
 import { useFieldErrors } from "@/lib/use-field-errors";
 import { DatePicker } from "@/components/ui/date-picker";
 import { cn } from "@/lib/utils";
@@ -42,6 +44,7 @@ import {
     DialogTitle,
     DialogDescription,
 } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export const Route = createFileRoute("/entry-form")({
     component: EntryFormPage,
@@ -58,10 +61,14 @@ function BarcodePreview({
     value,
     displayValue = false,
     height = 22,
+    fontSize = 10,
+    bold = false,
 }: {
     value: string;
     displayValue?: boolean;
     height?: number;
+    fontSize?: number;
+    bold?: boolean;
 }) {
     const svgRef = useRef<SVGSVGElement>(null);
 
@@ -73,14 +80,15 @@ function BarcodePreview({
                     width: 1.5,
                     height: height,
                     displayValue: displayValue,
-                    fontSize: 10,
+                    fontSize: fontSize,
+                    fontOptions: bold ? "bold" : "",
                     margin: 0,
                 });
             } catch (e) {
                 console.error(e);
             }
         }
-    }, [value, displayValue, height]);
+    }, [value, displayValue, height, fontSize, bold]);
 
     return (
         <svg
@@ -102,7 +110,7 @@ function Field({
 }) {
     return (
         <div className="grid grid-cols-1 sm:grid-cols-[130px_1fr] items-start gap-1.5 sm:gap-3 min-w-0 w-full">
-            <Label className="text-sm text-muted-foreground sm:pt-2">
+            <Label className="text-sm font-medium text-primary/80 sm:pt-2 border-3 border-white/25 rounded-md px-2 py-1 w-full block">
                 {label}
             </Label>
             <div className="min-w-0 w-full">
@@ -175,6 +183,41 @@ function numberToWords(num: number): string {
     return convert(num).trim() + " Taka Only";
 }
 
+function canvasToBlobAsync(
+    canvas: HTMLCanvasElement,
+    quality: number,
+): Promise<Blob | null> {
+    return new Promise((resolve) => {
+        canvas.toBlob((blob) => resolve(blob), "image/jpeg", quality);
+    });
+}
+
+// Patient photos and fingerprint images only need to be legible at the tiny
+// sizes they're actually shown at (cards, thumbnails, printed reports) — not
+// full-resolution camera/gallery quality. Re-encodes at progressively lower
+// JPEG quality until the file is under targetKB, so a multi-MB phone photo
+// doesn't get stored (and uploaded) at its original size for no benefit.
+// Falls back to the smallest size it managed if even the lowest quality
+// tried is still over target, rather than degrading indefinitely.
+async function compressCanvasToTargetSize(
+    canvas: HTMLCanvasElement,
+    targetKB: number,
+): Promise<Blob | null> {
+    const qualities = [0.85, 0.7, 0.55, 0.4, 0.3, 0.2];
+    let smallestBlob: Blob | null = null;
+    for (const quality of qualities) {
+        const blob = await canvasToBlobAsync(canvas, quality);
+        if (!blob) continue;
+        if (!smallestBlob || blob.size < smallestBlob.size) {
+            smallestBlob = blob;
+        }
+        if (blob.size <= targetKB * 1024) {
+            return blob;
+        }
+    }
+    return smallestBlob;
+}
+
 // Reporting date is the next day after entry, skipping Friday (office day off) —
 // an entry made on Thursday reports on Saturday instead of Friday.
 function computeReportingDate(entryDate: string): string {
@@ -191,6 +234,7 @@ function computeReportingDate(entryDate: string): string {
 }
 
 function EntryFormPage() {
+    const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState("New Entry");
     const [activePatient, setActivePatient] = useState<any>(null);
     const [searchPaxId, setSearchPaxId] = useState("");
@@ -214,6 +258,19 @@ function EntryFormPage() {
     const [issueDate, setIssueDate] = useState("");
     const [jobApplied, setJobApplied] = useState("");
     const [agencyId, setAgencyId] = useState("");
+    // Agencies created inline via the quick-add dialog below. One-time
+    // agencies are excluded from the main `agencies` list by the backend
+    // (so they don't clutter the picker for future patients), so we keep
+    // whatever was just created in this session here too, purely so the
+    // Combobox can still display/select it for the entry currently being
+    // filled out.
+    const [extraAgencyOptions, setExtraAgencyOptions] = useState<
+        { value: string; label: string }[]
+    >([]);
+    const [isAddAgencyOpen, setIsAddAgencyOpen] = useState(false);
+    const [newAgencyName, setNewAgencyName] = useState("");
+    const [newAgencyOneTime, setNewAgencyOneTime] = useState(true);
+    const [addAgencyLoading, setAddAgencyLoading] = useState(false);
     const [mrId, setMrId] = useState("");
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [fingerprintFile, setFingerprintFile] = useState<File | null>(null);
@@ -322,10 +379,7 @@ function EntryFormPage() {
             canvas.height = video.videoHeight || 480;
             const ctx = canvas.getContext("2d");
             if (ctx) {
-                ctx.translate(canvas.width, 0);
-                ctx.scale(-1, 1);
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                ctx.setTransform(1, 0, 0, 1, 0, 0);
             }
             const dataUrl = canvas.toDataURL("image/jpeg");
             setCropImageSrc(dataUrl);
@@ -347,7 +401,7 @@ function EntryFormPage() {
         }
     };
 
-    const handleSaveCrop = () => {
+    const handleSaveCrop = async () => {
         if (!imgRef.current || !cropBoxRef.current) return;
         const img = imgRef.current;
         const cropBox = cropBoxRef.current;
@@ -395,33 +449,86 @@ function EntryFormPage() {
             );
         }
 
-        canvas.toBlob(
-            (blob) => {
-                if (blob) {
-                    const file = new File(
-                        [blob],
-                        activeCropField === "image"
-                            ? "cropped-photo.jpg"
-                            : "cropped-fingerprint.jpg",
-                        { type: "image/jpeg" },
+        const blob = await compressCanvasToTargetSize(canvas, 40);
+        if (blob) {
+            const file = new File(
+                [blob],
+                activeCropField === "image"
+                    ? "cropped-photo.jpg"
+                    : "cropped-fingerprint.jpg",
+                { type: "image/jpeg" },
+            );
+            const previewUrl = URL.createObjectURL(blob);
+            if (activeCropField === "image") {
+                handleImageFileChange(file);
+                setImagePreviewUrl(previewUrl);
+                savePhotoToDownloads(blob);
+            } else {
+                handleFingerprintFileChange(file);
+                setFingerprintPreviewUrl(previewUrl);
+            }
+            setIsCropDialogOpen(false);
+            toast.success(
+                `${activeCropField === "image" ? "Image" : "Fingerprint"} cropped and set successfully.`,
+            );
+        }
+    };
+
+    // Also saves a copy of the cropped patient photo into a "PatientPhotos"
+    // folder on the operator's PC, purely as a local backup. Does not touch
+    // the existing upload-to-server flow above.
+    const savePhotoToDownloads = (blob: Blob) => {
+        const safeName =
+            `${firstName}_${lastName}`.trim().replace(/[^a-zA-Z0-9_-]+/g, "_") ||
+            "patient";
+        const filename = `${safeName}_${Date.now()}.jpg`;
+
+        savePatientPhotoToFolder(blob, filename)
+            .then((result) => {
+                if (result.ok) return;
+
+                // Browser doesn't support the File System Access API,
+                // the page isn't on a secure origin, or the user declined
+                // folder access — fall back to a plain download (lands in
+                // the Downloads root) and tell the operator why.
+                if (result.reason === "unsupported") {
+                    toast.info(
+                        "This browser can't save directly into a folder — saved to Downloads instead. Use Chrome or Edge for direct folder saving.",
                     );
-                    const previewUrl = URL.createObjectURL(blob);
-                    if (activeCropField === "image") {
-                        handleImageFileChange(file);
-                        setImagePreviewUrl(previewUrl);
-                    } else {
-                        handleFingerprintFileChange(file);
-                        setFingerprintPreviewUrl(previewUrl);
-                    }
-                    setIsCropDialogOpen(false);
-                    toast.success(
-                        `${activeCropField === "image" ? "Image" : "Fingerprint"} cropped and set successfully.`,
+                } else if (result.reason === "insecure-context") {
+                    toast.info(
+                        "Direct folder saving needs a secure (https) or localhost address — saved to Downloads instead.",
+                    );
+                } else if (result.reason === "denied") {
+                    toast.info(
+                        "Folder access wasn't granted — saved to Downloads instead.",
+                    );
+                } else {
+                    console.error(
+                        "Direct folder save failed:",
+                        result.detail,
+                    );
+                    toast.info(
+                        `Couldn't save into the folder (${result.detail || "unknown error"}) — saved to Downloads instead.`,
                     );
                 }
-            },
-            "image/jpeg",
-            0.9,
-        );
+
+                try {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                } catch (err) {
+                    console.error("Failed to save photo copy locally:", err);
+                }
+            })
+            .catch((err) => {
+                console.error("Failed to save photo copy locally:", err);
+            });
     };
 
     useEffect(() => {
@@ -644,6 +751,12 @@ function EntryFormPage() {
         queryFn: () => apiRequest("/mrs"),
     });
 
+    // Fetch all patients for Next/Previous navigation, same as Report Entry.
+    const { data: allPatients = [] } = useQuery<any[]>({
+        queryKey: ["patients-list-all"],
+        queryFn: () => apiRequest("/patients"),
+    });
+
     const { data: user } = useQuery<any>({
         queryKey: ["currentUserProfile"],
         queryFn: () => apiRequest("/auth/me"),
@@ -714,10 +827,51 @@ function EntryFormPage() {
     const handleAgencyChange = (newAgencyId: string) => {
         setAgencyId(newAgencyId);
         if (!isEditing) {
-            const selected = agencies.find((a) => String(a.id) === newAgencyId);
-            if (selected && selected.price) {
-                setMedicalFee(Number(selected.price));
+            const selected = [...agencies, ...extraAgencyOptions.map((o) => ({ id: o.value, name: o.label, price: null }))]
+                .find((a) => String(a.id) === newAgencyId);
+            if (selected && (selected as any).price) {
+                setMedicalFee(Number((selected as any).price));
             }
+        }
+    };
+
+    // Lets staff register a walk-in/one-time agency without leaving the
+    // Entry Form. Defaults to "one-time" so it won't clutter the agency
+    // picker for future patients, but that can be unchecked for a real new
+    // permanent partner.
+    const handleQuickAddAgency = async () => {
+        if (!newAgencyName.trim()) {
+            toast.error("Please enter an agency name.");
+            return;
+        }
+        setAddAgencyLoading(true);
+        try {
+            const result = await apiRequest("/agencies", {
+                method: "POST",
+                body: JSON.stringify({
+                    name: newAgencyName.trim(),
+                    is_one_time: newAgencyOneTime,
+                }),
+            });
+            const created = result?.data || result;
+            setExtraAgencyOptions((prev) => [
+                ...prev,
+                { value: String(created.id), label: created.name },
+            ]);
+            handleAgencyChange(String(created.id));
+            queryClient.invalidateQueries({ queryKey: ["agencies"] });
+            toast.success(
+                newAgencyOneTime
+                    ? "One-time agency added and selected."
+                    : "Agency added and selected.",
+            );
+            setIsAddAgencyOpen(false);
+            setNewAgencyName("");
+            setNewAgencyOneTime(true);
+        } catch (err: any) {
+            toastApiError(err, "Failed to add agency.");
+        } finally {
+            setAddAgencyLoading(false);
         }
     };
 
@@ -793,6 +947,38 @@ function EntryFormPage() {
             toastApiError(err, "Patient not found.");
         } finally {
             setSearchLoading(false);
+        }
+    };
+
+    // NEXT / PREVIOUS Navigation — sorted ascending by ID so "NEXT" always
+    // moves to the next-higher (newer) patient ID and "PREVIOUS" moves to
+    // the next-lower (older) one, matching what the button labels say
+    // (same convention as the Report Entry sidebar).
+    const handleNextPatient = () => {
+        if (!activePatient || !allPatients.length) return;
+        const sorted = [...allPatients].sort((a, b) => a.id - b.id);
+        const currentIndex = sorted.findIndex((p) => p.id === activePatient.id);
+        if (currentIndex >= 0 && currentIndex < sorted.length - 1) {
+            const nextPatient = sorted[currentIndex + 1];
+            setActivePatient(nextPatient);
+            setSearchPaxId(nextPatient.pax_id);
+            populateForm(nextPatient);
+        } else {
+            toast.info("Reached end of patient list.");
+        }
+    };
+
+    const handlePreviousPatient = () => {
+        if (!activePatient || !allPatients.length) return;
+        const sorted = [...allPatients].sort((a, b) => a.id - b.id);
+        const currentIndex = sorted.findIndex((p) => p.id === activePatient.id);
+        if (currentIndex > 0) {
+            const prevPatient = sorted[currentIndex - 1];
+            setActivePatient(prevPatient);
+            setSearchPaxId(prevPatient.pax_id);
+            populateForm(prevPatient);
+        } else {
+            toast.info("Reached beginning of patient list.");
         }
     };
 
@@ -1283,10 +1469,6 @@ function EntryFormPage() {
       `;
         } else if (activeTab === "Label Print") {
             const paxId = activePatient.pax_id;
-            const name =
-                `${activePatient.first_name} ${activePatient.last_name || ""}`
-                    .toUpperCase()
-                    .trim();
             const dateStr = activePatient.date || "";
 
             const pageWidth = "40mm";
@@ -1353,8 +1535,7 @@ function EntryFormPage() {
           }
           
           /* Smart Label Styles (tightened margins/font to ensure safe fit) */
-          .smart-name { font-size: 13px; font-weight: bold; margin-bottom: 3px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;}
-          .smart-date { font-size: 10px; margin-bottom: 5px; text-align: center; color: #000;}
+          .smart-date { font-size: 9px; font-weight: normal; margin-bottom: 4px; text-align: center; color: #000;}
 
           .barcode-container {
             display: flex;
@@ -1375,7 +1556,6 @@ function EntryFormPage() {
 <div class="label-page">
   <div class="label-center-anchor">
     <div class="label-content">
-      <div class="smart-name">${name.substring(0, 25)}</div>
       <div class="smart-date">Date: ${dateStr}</div>
       <div class="barcode-container">
         <svg class="barcode-svg" data-pax="${paxId}"></svg>
@@ -1393,10 +1573,12 @@ function EntryFormPage() {
                 const code = el.getAttribute('data-pax');
                 JsBarcode(el, code, {
                   format: 'CODE128',
-                  width: 1.2,
-                  height: 38,
+                  width: 1.0,
+                  height: 46,
                   displayValue: true,
-                  fontSize: 9,
+                  fontSize: 16,
+                  fontOptions: 'bold',
+                  textMargin: 4,
                   margin: 0
                 });
               });
@@ -1419,13 +1601,33 @@ function EntryFormPage() {
         }
     };
 
+    // Ctrl+P (Cmd+P on Mac) used to fall through to the browser's native
+    // print, which prints the on-screen React tab as-is — a different
+    // rendering from the dedicated print popup above (different markup,
+    // different CSS), so the two could never be made pixel-identical and
+    // would keep drifting apart on every future style tweak. Intercepting
+    // the shortcut and routing it through the exact same handlePrint()
+    // guarantees there's only one code path producing printed output, ever.
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const isPrintShortcut =
+                (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p";
+            if (isPrintShortcut) {
+                e.preventDefault();
+                handlePrint();
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    });
+
     return (
         <DashboardShell
             title="Entry Form"
             subtitle="Register patient entries and preview documents."
         >
             {/* Top search bar to load existing records */}
-            <div className="card-surface p-3 sm:p-4 mb-4 flex items-center justify-between gap-3 flex-wrap">
+            <div className="no-print card-surface p-3 sm:p-4 mb-4 flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex flex-wrap items-center gap-2">
                     <Label className="text-xs uppercase tracking-wider text-muted-foreground">
                         Active Patient:
@@ -1474,9 +1676,9 @@ function EntryFormPage() {
                 </div>
             </div>
 
-            <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[220px_1fr]">
+            <div className="entry-form-main-grid grid min-w-0 grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[220px_1fr]">
                 {/* Sidebar Actions */}
-                <aside className="card-surface min-w-0 p-3 h-fit space-y-3">
+                <aside className="no-print card-surface min-w-0 p-3 h-fit space-y-3">
                     <div className="space-y-1">
                         {sideActions.map((a) => {
                             const isActive = activeTab === a.label;
@@ -1493,31 +1695,52 @@ function EntryFormPage() {
                             );
                         })}
                     </div>
-                    {activePatient && (
+                    {activePatient && canPrintCard && (
                         <div className="flex flex-wrap gap-2">
-                            {canPrintCard && (
-                                <Button
-                                    className="gradient-primary shadow-md w-full sm:w-auto"
-                                    onClick={handlePrint}
-                                    disabled={!activePatient}
-                                >
-                                    <Printer className="mr-2 h-4 w-4" /> Print
-                                    Document
-                                </Button>
-                            )}
+                            <Button
+                                className="gradient-primary shadow-md w-full sm:w-auto"
+                                onClick={handlePrint}
+                                disabled={!activePatient}
+                            >
+                                <Printer className="mr-2 h-4 w-4" /> Print
+                                Document
+                            </Button>
                         </div>
                     )}
+                    <div className="border-t border-border/40 pt-2 space-y-1">
+                        <Button
+                            variant="ghost"
+                            className="w-full justify-start"
+                            disabled={!activePatient}
+                            onClick={handleNextPatient}
+                        >
+                            NEXT →
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            className="w-full justify-start"
+                            disabled={!activePatient}
+                            onClick={handlePreviousPatient}
+                        >
+                            ← PREVIOUS
+                        </Button>
+                    </div>
                 </aside>
 
                 {/* Content Panel */}
-                <div className="card-surface min-w-0 p-4 sm:p-6 overflow-hidden">
+                <div className="entry-form-content-panel card-surface min-w-0 p-4 sm:p-6 overflow-hidden">
                     {/* TAB 1: New Entry registration form */}
                     {activeTab === "New Entry" && (
                         <div>
-                            <h3 className="font-display text-base font-semibold mb-4">
-                                Patient Medical Registration
-                            </h3>
-                            <div className="grid gap-x-8 gap-y-3 sm:gap-y-4 grid-cols-1 xl:grid-cols-2 min-w-0">
+                            <div className="mb-4 flex items-center gap-3 border-b border-primary/15 pb-3">
+                                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                                    <FileText className="h-4.5 w-4.5" />
+                                </div>
+                                <h3 className="font-display text-base font-semibold">
+                                    Patient Medical Registration
+                                </h3>
+                            </div>
+                            <div className="dark-fields-panel grid gap-x-8 gap-y-3 sm:gap-y-4 grid-cols-1 xl:grid-cols-2 min-w-0 rounded-xl border border-black/20 bg-[#5c5c5c] p-4 sm:p-6">
                                 <Field label="Date" error={fieldErrors.date}>
                                     <DatePicker
                                         value={date}
@@ -1777,24 +2000,41 @@ function EntryFormPage() {
                                     label="Agency"
                                     error={fieldErrors.agency_id}
                                 >
-                                    <Combobox
-                                        value={agencyId}
-                                        onChange={(val) => {
-                                            handleAgencyChange(val);
-                                            clear("agency_id");
-                                        }}
-                                        options={agencies.map((a) => ({
-                                            value: String(a.id),
-                                            label: a.name,
-                                        }))}
-                                        placeholder="Select agency"
-                                        searchPlaceholder="Type to search agency..."
-                                        emptyText="No agency found."
-                                        className={cn(
-                                            fieldErrors.agency_id &&
-                                            "border-red-500 ring-red-500",
-                                        )}
-                                    />
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="min-w-0 flex-1">
+                                            <Combobox
+                                                value={agencyId}
+                                                onChange={(val) => {
+                                                    handleAgencyChange(val);
+                                                    clear("agency_id");
+                                                }}
+                                                options={[
+                                                    ...agencies.map((a) => ({
+                                                        value: String(a.id),
+                                                        label: a.name,
+                                                    })),
+                                                    ...extraAgencyOptions,
+                                                ]}
+                                                placeholder="Select agency"
+                                                searchPlaceholder="Type to search agency..."
+                                                emptyText="No agency found."
+                                                className={cn(
+                                                    fieldErrors.agency_id &&
+                                                    "border-red-500 ring-red-500",
+                                                )}
+                                            />
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-9 w-9 shrink-0"
+                                            title="Add a new agency (e.g. a one-time walk-in)"
+                                            onClick={() => setIsAddAgencyOpen(true)}
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                        </Button>
+                                    </div>
                                 </Field>
 
                                 <Field label="MR" error={fieldErrors.mr_id}>
@@ -1896,7 +2136,7 @@ function EntryFormPage() {
                                                 <Fingerprint className="h-4 w-4 shrink-0" />
                                                 Scan Fingerprint
                                             </Button>
-                                            <span className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                            <span className="inline-flex items-center gap-1.5 text-[10px] text-white/70">
                                                 <span
                                                     className={cn(
                                                         "h-1.5 w-1.5 rounded-full",
@@ -1932,7 +2172,7 @@ function EntryFormPage() {
                                             </span>
                                             <button
                                                 type="button"
-                                                className="text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground text-left"
+                                                className="text-sm font-medium text-emerald-300 underline underline-offset-2 hover:text-emerald-200 text-left"
                                                 onClick={() => {
                                                     setActiveCropField(
                                                         "fingerprint",
@@ -1947,8 +2187,8 @@ function EntryFormPage() {
                                 </Field>
                             </div>
 
-                            <div className="mt-8 border-t border-border/60 pt-6">
-                                <div className="grid gap-x-8 gap-y-3 sm:gap-y-4 grid-cols-1 xl:grid-cols-2 min-w-0">
+                            <div className="mt-8 pt-6">
+                                <div className="dark-fields-panel grid gap-x-8 gap-y-3 sm:gap-y-4 grid-cols-1 xl:grid-cols-2 min-w-0 rounded-xl border border-black/20 bg-[#5c5c5c] p-4 sm:p-6">
                                     <Field
                                         label="Medical Fee"
                                         error={fieldErrors.medical_fee}
@@ -2096,7 +2336,7 @@ function EntryFormPage() {
                                                     playsInline
                                                     muted
                                                     className={cn(
-                                                        "w-full h-full object-cover scale-x-[-1]",
+                                                        "w-full h-full object-cover",
                                                         !cameraActive &&
                                                         "hidden",
                                                     )}
@@ -2369,6 +2609,79 @@ function EntryFormPage() {
                         </DialogContent>
                     </Dialog>
 
+                    {/* Quick-add Agency Dialog — mainly for one-time/walk-in agencies */}
+                    <Dialog open={isAddAgencyOpen} onOpenChange={setIsAddAgencyOpen}>
+                        <DialogContent className="max-w-md w-full p-6 flex flex-col gap-4">
+                            <DialogHeader>
+                                <DialogTitle>Add New Agency</DialogTitle>
+                                <DialogDescription>
+                                    Quickly register an agency without leaving this form.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-3">
+                                <div>
+                                    <Label className="text-sm text-muted-foreground">
+                                        Agency Name
+                                    </Label>
+                                    <Input
+                                        autoFocus
+                                        placeholder="Enter agency name"
+                                        value={newAgencyName}
+                                        onChange={(e) =>
+                                            setNewAgencyName(e.target.value)
+                                        }
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                                e.preventDefault();
+                                                handleQuickAddAgency();
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                <div className="flex items-start gap-2 pt-1">
+                                    <Checkbox
+                                        id="new-agency-one-time"
+                                        checked={newAgencyOneTime}
+                                        onCheckedChange={(checked) =>
+                                            setNewAgencyOneTime(checked === true)
+                                        }
+                                    />
+                                    <Label
+                                        htmlFor="new-agency-one-time"
+                                        className="font-normal leading-snug cursor-pointer"
+                                    >
+                                        One-time / walk-in agency
+                                        <span className="block text-xs text-muted-foreground font-normal">
+                                            Won't show up in this picker again after today — use this for a one-off referrer. Uncheck if it's a real ongoing partner.
+                                        </span>
+                                    </Label>
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-2 pt-2">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    onClick={() => setIsAddAgencyOpen(false)}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="button"
+                                    className="gradient-primary"
+                                    disabled={addAgencyLoading || !newAgencyName.trim()}
+                                    onClick={handleQuickAddAgency}
+                                >
+                                    {addAgencyLoading ? (
+                                        <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Plus className="mr-1 h-4 w-4" />
+                                    )}
+                                    Add & Select
+                                </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+
                     {/* Fingerprint Scanner Capture Dialog */}
                     <Dialog
                         open={isScannerDialogOpen}
@@ -2508,7 +2821,7 @@ function EntryFormPage() {
 
                     {/* TAB 6: Invoice receipt template */}
                     {activeTab === "Invoice" && (
-                        <div className="p-3 sm:p-4 bg-white text-slate-900 border border-slate-200 rounded-xl space-y-3 font-sans overflow-x-auto min-w-0">
+                        <div className="invoice-print-card p-3 sm:p-4 bg-white text-slate-900 border border-slate-200 rounded-xl space-y-3 font-sans overflow-x-auto min-w-0">
                             {activePatient ? (
                                 <>
                                     <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center border-b border-slate-200 pb-4 gap-4">
@@ -2835,7 +3148,7 @@ function EntryFormPage() {
 
                     {/* TAB 6.5: Invoice Zero receipt template */}
                     {activeTab === "Invoice Zero" && (
-                        <div className="p-3 sm:p-4 bg-white text-slate-900 border border-slate-200 rounded-xl space-y-3 font-sans overflow-x-auto min-w-0">
+                        <div className="invoice-print-card p-3 sm:p-4 bg-white text-slate-900 border border-slate-200 rounded-xl space-y-3 font-sans overflow-x-auto min-w-0">
                             {activePatient ? (
                                 <>
                                     <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center border-b border-slate-200 pb-4 gap-4">
@@ -3136,12 +3449,7 @@ function EntryFormPage() {
                                                     transform: "rotate(90deg)",
                                                 }}
                                             >
-                                                <div className="text-center font-bold text-xs uppercase tracking-wide truncate">
-                                                    {activePatient.first_name}{" "}
-                                                    {activePatient.last_name ||
-                                                        ""}
-                                                </div>
-                                                <div className="text-center text-[10px] text-slate-500">
+                                                <div className="text-center font-normal text-[9px] text-slate-700">
                                                     Date: {activePatient.date}
                                                 </div>
                                                 <div className="mt-1 flex justify-center">
@@ -3150,7 +3458,9 @@ function EntryFormPage() {
                                                             activePatient.pax_id
                                                         }
                                                         displayValue={true}
-                                                        height={38}
+                                                        height={46}
+                                                        fontSize={16}
+                                                        bold={true}
                                                     />
                                                 </div>
                                             </div>

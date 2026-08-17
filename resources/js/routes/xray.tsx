@@ -154,7 +154,7 @@ function XrayPage() {
   return (
     <DashboardShell title="X-Ray Upload" subtitle="Attach and report X-Ray findings to a patient.">
       <div className="card-surface p-6 space-y-6">
-        <div className="flex flex-col gap-4 border-b border-border/60 pb-5 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
+        <div className="no-print flex flex-col gap-4 border-b border-border/60 pb-5 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
           <h3 className="font-display text-lg font-semibold">X-Ray Report Entry</h3>
           <div className="w-full sm:w-auto sm:ml-auto">
             <Label className="text-xs">Search Patient by ID</Label>
@@ -176,7 +176,7 @@ function XrayPage() {
 
         {patient && (
           <>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="dark-fields-panel grid gap-4 md:grid-cols-2 rounded-xl border border-black/20 bg-[#5c5c5c] p-4 sm:p-6">
               <div><Label>Pax Id</Label><Input value={patient.pax_id} disabled /></div>
               <div>
                 <Label>Date</Label>
@@ -188,7 +188,7 @@ function XrayPage() {
               <div><Label>Agency</Label><Input value={patient.agency?.name || ""} disabled /></div>
               <div><Label>Mobile No</Label><Input value={patient.mobile_no || ""} disabled /></div>
               <div><Label>Passport No</Label><Input value={patient.passport_no || ""} disabled /></div>
-              
+
               <div className="md:col-span-2">
                 <Label>Remark</Label>
                 <Textarea rows={2} value={remark} onChange={(e) => setRemark(e.target.value)} />

@@ -91,7 +91,8 @@ class PatientController extends Controller
             $query->where('created_by', $request->created_by);
         }
 
-        $patients = $query->orderBy('created_at', 'desc')->get();
+        $sortDir = strtolower($request->query('sort_dir', 'asc'));
+        $patients = $query->orderBy('id', $sortDir === 'desc' ? 'desc' : 'asc')->get();
 
         return response()->json($patients);
     }
@@ -108,12 +109,11 @@ class PatientController extends Controller
     {
         $search = $request->query('PassportNo') ?? $request->query('query');
         if (empty($search)) {
-            return response()->json(['error' => 'Passport No or Pax ID is required'], 422);
+            return response()->json(['error' => 'Passport No is required'], 422);
         }
 
         $patient = Patient::with(['country', 'agency', 'mr', 'medicalReport', 'xrayReport'])
-            ->where('pax_id', $search)
-            ->orWhere('passport_no', $search)
+            ->where('passport_no', $search)
             ->first();
 
         if (!$patient) {
@@ -131,14 +131,30 @@ class PatientController extends Controller
 
     public function dashboardStats()
     {
-        $totalPatients = Patient::count();
-        $completedReports = MedicalReport::whereIn('final_status', ['Fit', 'Unfit', 'FIT', 'UNFIT'])->count();
-        
+        // Dashboard top stat cards reflect only the current calendar month,
+        // scoped off the patient's entry `date` field (the same date shown
+        // in the "Recent Patient Entries" table), not the DB row's created_at.
+        $monthStart = now()->startOfMonth()->format('Y-m-d');
+        $monthEnd = now()->endOfMonth()->format('Y-m-d');
+
+        $totalPatients = Patient::whereBetween('date', [$monthStart, $monthEnd])->count();
+        $completedReports = MedicalReport::whereIn('final_status', ['Fit', 'Unfit', 'FIT', 'UNFIT'])
+            ->whereHas('patient', function ($q) use ($monthStart, $monthEnd) {
+                $q->whereBetween('date', [$monthStart, $monthEnd]);
+            })
+            ->count();
+
         // Count Xray Reports with findings or result
-        $xrayUploaded = XrayReport::whereNotNull('findings')->orWhere('result', 'Normal')->count();
-        
-        // Calculate receivables from patients
-        $receivables = Patient::sum('due_amount');
+        $xrayUploaded = XrayReport::where(function ($q) {
+                $q->whereNotNull('findings')->orWhere('result', 'Normal');
+            })
+            ->whereHas('patient', function ($q) use ($monthStart, $monthEnd) {
+                $q->whereBetween('date', [$monthStart, $monthEnd]);
+            })
+            ->count();
+
+        // Calculate receivables from patients entered this month
+        $receivables = Patient::whereBetween('date', [$monthStart, $monthEnd])->sum('due_amount');
 
         // Total count of config tables
         $totalCountries = Country::count();
@@ -241,6 +257,12 @@ class PatientController extends Controller
                 'patient_id'   => $patient->id,
                 'final_status' => 'Held up',
                 'is_online'    => 'No',
+                'hbsag'        => 'N/A',
+                'hcv'          => 'N/A',
+                'tpha'         => 'N/A',
+                'pregnancy'    => 'N/A',
+                'malaria'      => 'N/A',
+                'hiv'          => 'N/A',
             ]);
 
             // Auto-create blank Xray Report

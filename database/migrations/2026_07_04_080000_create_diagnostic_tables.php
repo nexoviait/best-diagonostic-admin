@@ -68,24 +68,24 @@ return new class extends Migration
             $table->id();
             $table->foreignId('patient_id')->constrained('patients')->onDelete('cascade');
             
-            // Standard test parameters (default Negative)
-            $table->string('bld_group')->default('Negative');
-            $table->string('hiv_antibody')->default('Negative');
-            $table->string('hbsag')->default('Negative');
-            $table->string('hcv')->default('Negative');
+            // Standard test parameters (default N/A)
+            $table->string('bld_group')->default('N/A');
+            $table->string('hiv_antibody')->default('N/A');
+            $table->string('hbsag')->default('N/A');
+            $table->string('hcv')->default('N/A');
             $table->string('malaria')->default('N/A');
-            $table->string('tpha')->default('Negative');
-            $table->string('tb')->default('Negative');
-            $table->string('filariasis')->default('Negative');
-            $table->string('leishmaniasis')->default('Negative');
-            $table->string('leprosy')->default('Negative');
-            $table->string('free_from_chronic')->default('Negative');
-            $table->string('tumor_cancer')->default('Negative');
-            $table->string('epilepsy')->default('Negative');
-            $table->string('mental_illness')->default('Negative');
-            $table->string('pregnancy')->default('Negative');
-            $table->string('xray')->default('Negative');
-            $table->string('physical')->default('Negative');
+            $table->string('tpha')->default('N/A');
+            $table->string('tb')->default('N/A');
+            $table->string('filariasis')->default('N/A');
+            $table->string('leishmaniasis')->default('N/A');
+            $table->string('leprosy')->default('N/A');
+            $table->string('free_from_chronic')->default('N/A');
+            $table->string('tumor_cancer')->default('N/A');
+            $table->string('epilepsy')->default('N/A');
+            $table->string('mental_illness')->default('N/A');
+            $table->string('pregnancy')->default('N/A');
+            $table->string('xray')->default('N/A');
+            $table->string('physical')->default('N/A');
 
             // Numeric/value specific parameters
             $table->string('amp')->nullable(); // Amphetamine

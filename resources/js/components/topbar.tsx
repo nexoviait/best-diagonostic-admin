@@ -31,7 +31,7 @@ export function Topbar({ title, subtitle }: TopbarProps) {
     .substring(0, 2);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur-xl">
+    <header className="no-print sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur-xl">
       <div className="flex h-16 items-center gap-3 px-4 md:px-6">
         <SidebarTrigger className="-ml-1" />
         <div className="hidden flex-col md:flex">

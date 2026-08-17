@@ -156,7 +156,7 @@ function MrListPage() {
           <h3 className="font-display text-base font-semibold">
             {selectedId ? "Edit MR Profile" : "Add New MR"}
           </h3>
-          <div className="space-y-3">
+          <div className="dark-fields-panel space-y-3 rounded-xl border border-black/20 bg-[#5c5c5c] p-4">
             <div>
               <Label>ID</Label>
               <Input placeholder={selectedId || "Auto"} disabled className="bg-slate-50" />

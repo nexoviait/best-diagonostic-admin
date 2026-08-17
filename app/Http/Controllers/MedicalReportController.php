@@ -25,7 +25,13 @@ class MedicalReportController extends Controller
             $report = MedicalReport::create([
                 'patient_id' => $patient->id,
                 'final_status' => 'Held up',
-                'is_online' => 'No'
+                'is_online' => 'No',
+                'hbsag' => 'N/A',
+                'hcv' => 'N/A',
+                'tpha' => 'N/A',
+                'pregnancy' => 'N/A',
+                'malaria' => 'N/A',
+                'hiv' => 'N/A',
             ]);
         }
 

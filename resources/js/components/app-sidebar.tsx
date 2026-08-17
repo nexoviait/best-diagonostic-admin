@@ -147,7 +147,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" className="no-print">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-2">
           <div className="grid h-14 w-14 place-items-center rounded-lg bg-transparent overflow-hidden flex-shrink-0">

@@ -211,6 +211,7 @@ export function MedicalReportView({
   const hemogloVal = getValue(formValues?.hemoglo, mr.hemoglo, "");
   const esrVal = getValue(formValues?.esr, mr.esr, "");
   const rbsVal = getValue(formValues?.rbs, mr.rbs, "");
+  const rbcVal = getValue(formValues?.rbc, mr.rbc, "");
   const plateletsVal = getValue(formValues?.platelets, mr.platelets, "");
   const wbcVal = getValue(formValues?.wbc, mr.wbc, "");
   const neutrophilsVal = getValue(formValues?.neutrophils, mr.neutrophils, "");
@@ -575,7 +576,7 @@ export function MedicalReportView({
                         <td style={{ border: cellBorder, padding: cellPad, fontSize: fs85 }}>RBC</td>
                         <td style={{ border: cellBorder, padding: "0", fontSize: fs85 }}>
                           <div style={{ display: "flex", width: "100%", height: "100%" }}>
-                            <div style={{ flex: 1, padding: cellPad, textAlign: "center", fontSize: fs10, fontWeight: "bold" }}>{rbsVal}</div>
+                            <div style={{ flex: 1, padding: cellPad, textAlign: "center", fontSize: fs10, fontWeight: "bold" }}>{rbcVal}</div>
                             <div style={{ width: "85px", padding: cellPad, textAlign: "right", fontSize: "10px" }}>4.5-5.5</div>
                           </div>
                         </td>

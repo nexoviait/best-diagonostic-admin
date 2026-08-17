@@ -9,7 +9,11 @@ class Agency extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'contact_person', 'email', 'mobile_no', 'address', 'price', 'status'];
+    protected $fillable = ['name', 'contact_person', 'email', 'mobile_no', 'address', 'price', 'status', 'is_one_time'];
+
+    protected $casts = [
+        'is_one_time' => 'boolean',
+    ];
 
     // ─── Relationships ───────────────────────────────────────────────────────
 

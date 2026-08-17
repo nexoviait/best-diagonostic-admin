@@ -105,28 +105,28 @@ function Overview() {
         <StatCard
           label="Total Patients"
           value={isLoading ? "..." : (stats?.total_patients ?? 0).toLocaleString()}
-          delta="registered all-time"
+          delta="registered this month"
           icon={Users}
           tone="primary"
         />
         <StatCard
           label="Reports Completed"
           value={isLoading ? "..." : (stats?.completed_reports ?? 0).toLocaleString()}
-          delta="Fit or Unfit reports"
+          delta="Fit or Unfit this month"
           icon={FileCheck2}
           tone="success"
         />
         <StatCard
           label="X-Rays Uploaded"
           value={isLoading ? "..." : (stats?.xray_uploaded ?? 0).toLocaleString()}
-          delta="Radiology records"
+          delta="Radiology records this month"
           icon={ScanLine}
           tone="primary"
         />
         <StatCard
           label="Agency Receivables"
           value={isLoading ? "..." : `৳ ${(stats?.agency_receivables ?? 0).toLocaleString()}`}
-          delta="Outstanding dues"
+          delta="Outstanding dues this month"
           icon={Wallet}
           tone="warning"
         />

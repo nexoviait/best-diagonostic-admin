@@ -66,7 +66,7 @@ function SearchPassportPage() {
         <div className="w-full max-w-md text-center bg-white p-8 rounded-md shadow-sm border">
           <h2 className="text-lg font-semibold text-destructive">Report Not Found</h2>
           <p className="mt-2 text-sm text-gray-500">
-            No medical report could be found for Passport No / Pax ID: <strong>{PassportNo}</strong>
+            No medical report could be found for Passport No: <strong>{PassportNo}</strong>
           </p>
           <div className="mt-6">
             <Button asChild className="bg-[#0d9488] hover:bg-[#0b7a70]">

@@ -3,14 +3,12 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/medical")({
   component: MedicalSearchPage,
 });
 
 function MedicalSearchPage() {
-  const [searchType, setSearchType] = useState<"passport" | "pax">("passport");
   const [searchValue, setSearchValue] = useState("");
   const navigate = useNavigate();
 
@@ -31,36 +29,9 @@ function MedicalSearchPage() {
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="flex justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSearchType("passport")}
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs font-semibold",
-                searchType === "passport"
-                  ? "border-[#0d9488] bg-[#0d9488] text-white"
-                  : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50",
-              )}
-            >
-              Search by Passport No
-            </button>
-            <button
-              type="button"
-              onClick={() => setSearchType("pax")}
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs font-semibold",
-                searchType === "pax"
-                  ? "border-[#0d9488] bg-[#0d9488] text-white"
-                  : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50",
-              )}
-            >
-              Search by SL No
-            </button>
-          </div>
-
           <div className="flex items-center justify-center gap-3">
             <Label htmlFor="search-value" className="whitespace-nowrap text-xs font-semibold text-gray-700">
-              {searchType === "passport" ? "Passport No :" : "SL No :"}
+              Passport No :
             </Label>
             <Input
               id="search-value"
@@ -72,7 +43,7 @@ function MedicalSearchPage() {
             />
           </div>
           <div className="text-center text-xs italic text-gray-500">
-            {searchType === "passport" ? "Example: AA34534656" : "Example: BEST000015"}
+            Example: AA34534656
           </div>
           <div className="flex justify-center gap-3">
             <Button

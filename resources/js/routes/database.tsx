@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Search, Loader2, Pencil, Trash2, FileText, ScanLine } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
@@ -31,8 +32,8 @@ function FilterCard({
   onSearch: () => void;
 }) {
   return (
-    <div className="card-surface flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-end">
-      <div className="shrink-0 text-xs font-medium uppercase tracking-wider text-muted-foreground sm:w-[90px]">
+    <div className="dark-fields-panel flex flex-col gap-3 rounded-xl border border-black/20 bg-[#5c5c5c] p-4 sm:flex-row sm:flex-wrap sm:items-end">
+      <div className="shrink-0 text-xs font-medium uppercase tracking-wider text-white sm:w-[90px]">
         {title}
       </div>
       {children}
@@ -115,8 +116,11 @@ function DatabasePage() {
 
   // Fetch dropdown options
   const { data: agencies = [] } = useQuery<any[]>({
-    queryKey: ["agencies"],
-    queryFn: () => apiRequest("/agencies"),
+    // include_one_time: this filter needs to find patients registered under
+    // a one-time (walk-in) agency too, so it fetches the full list — unlike
+    // the Entry Form's agency picker, which hides those by default.
+    queryKey: ["agencies", "all"],
+    queryFn: () => apiRequest("/agencies?include_one_time=1"),
   });
 
   const { data: mrs = [] } = useQuery<any[]>({
@@ -143,6 +147,8 @@ function DatabasePage() {
       if (filters.agency_id && filters.agency_id !== "all") params.append("agency_id", filters.agency_id);
       if (filters.mr_id && filters.mr_id !== "all") params.append("mr_id", filters.mr_id);
       if (filters.created_by && filters.created_by !== "all") params.append("created_by", filters.created_by);
+      // Newest entries first in this Results table specifically.
+      params.append("sort_dir", "desc");
 
       return apiRequest(`/patients?${params.toString()}`);
     },
@@ -174,11 +180,13 @@ function DatabasePage() {
       day: '2-digit', month: '2-digit', year: 'numeric'
     });
 
-    const totalMedicalFee = patientsData.reduce((acc, curr) => acc + (Number(curr.medical_fee) || 0), 0);
-    const totalNiddleCharge = patientsData.reduce((acc, curr) => acc + (Number(curr.niddle_charge) || 0), 0);
+    const totalMedicalFee = (patientsData || []).reduce((acc, curr) => acc + (Number(curr?.medical_fee) || 0), 0);
+    const totalNiddleCharge = (patientsData || []).reduce((acc, curr) => acc + (Number(curr?.niddle_charge) || 0), 0);
     const totalNet = totalMedicalFee + totalNiddleCharge;
-    const totalReceived = patientsData.reduce((acc, curr) => acc + (Number(curr.received_amount) || 0), 0);
-    const totalDue = patientsData.reduce((acc, curr) => acc + (Number(curr.due_amount) || 0), 0);
+    const totalReceived = (patientsData || []).reduce((acc, curr) => acc + (Number(curr?.received_amount) || 0), 0);
+    const totalDue = (patientsData || []).reduce((acc, curr) => acc + (Number(curr?.due_amount) || 0), 0);
+
+    const sortedPatients = [...(patientsData || [])].sort((a, b) => ((a && a.id) || 0) - ((b && b.id) || 0));
 
     const html = `
       <!DOCTYPE html>
@@ -186,15 +194,15 @@ function DatabasePage() {
       <head>
         <title>${title}</title>
         <style>
-          @page { size: A4 landscape; margin: 10mm; }
-          body { font-family: 'Arial', sans-serif; padding: 20px; font-size: 10px; color: #000; }
-          .header { display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: bold; background-color: #e0e0e0; padding: 6px; border: 1px solid #000; font-size: 11px; }
-          .title { font-size: 14px; margin-bottom: 10px; font-weight: bold; text-align: left; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 10px; }
-          th, td { border: 1px solid #000; padding: 4px 6px; text-align: center; }
+          @page { size: A4 portrait; margin: 8mm; }
+          body { font-family: 'Arial', sans-serif; padding: 10px; font-size: 9px; color: #000; }
+          .header { display: flex; justify-content: space-between; margin-bottom: 12px; font-weight: bold; background-color: #e0e0e0; padding: 6px; border: 1px solid #000; font-size: 10px; }
+          .title { font-size: 13px; margin-bottom: 8px; font-weight: bold; text-align: left; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 8.5px; }
+          th, td { border: 1px solid #000; padding: 3px 4px; text-align: center; word-break: break-word; }
           th { background-color: #f5f5f5; font-weight: bold; }
-          .summary-boxes { display: flex; gap: 15px; flex-wrap: wrap; margin-top: 20px; font-size: 10px; justify-content: flex-start; }
-          .summary-box { border: 1px solid #000; padding: 4px 8px; display: flex; gap: 8px; align-items: center; }
+          .summary-boxes { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 15px; font-size: 9px; justify-content: flex-start; }
+          .summary-box { border: 1px solid #000; padding: 3px 6px; display: flex; gap: 6px; align-items: center; }
           .summary-label { font-weight: bold; }
           @media print {
             body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -220,28 +228,28 @@ function DatabasePage() {
               <th>Name</th>
               <th>PP No</th>
               <th>Agency</th>
+              <th>MR</th>
               <th>Total Fee</th>
               <th>Received</th>
               <th>Niddle</th>
               <th>Remark</th>
-              <th>Created By</th>
             </tr>
           </thead>
           <tbody>
-            ${patientsData.length === 0 ? '<tr><td colspan="11">No records found</td></tr>' : ''}
-            ${patientsData.map((p, i) => `
+            ${sortedPatients.length === 0 ? '<tr><td colspan="11">No records found</td></tr>' : ''}
+            ${sortedPatients.map((p, i) => `
               <tr>
                 <td>${i + 1}</td>
-                <td>${p.date ? new Date(p.date).toLocaleDateString('en-GB') : ''}</td>
-                <td>${p.pax_id || ''}</td>
-                <td style="text-align:left;">${p.first_name} ${p.last_name || ''}</td>
-                <td>${p.passport_no || ''}</td>
-                <td>${p.agency?.name || ''}</td>
-                <td>${p.medical_fee || 0}</td>
-                <td>${p.received_amount || 0}</td>
-                <td>${p.niddle_charge || 0}</td>
-                <td>${p.medicalReport?.final_status || 'Pending'}</td>
-                <td>${p.creator?.name || ''}</td>
+                <td>${p?.date ? new Date(p.date).toLocaleDateString('en-GB') : ''}</td>
+                <td>${p?.pax_id || ''}</td>
+                <td style="text-align:left;">${p?.first_name || ''} ${p?.last_name || ''}</td>
+                <td>${p?.passport_no || ''}</td>
+                <td>${p?.agency?.name || ''}</td>
+                <td>${p?.mr?.name || ''}</td>
+                <td>${p?.medical_fee || 0}</td>
+                <td>${p?.received_amount || 0}</td>
+                <td>${p?.niddle_charge || 0}</td>
+                <td>${p?.medicalReport?.final_status || 'Pending'}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -258,8 +266,14 @@ function DatabasePage() {
       </body>
       </html>
     `;
-    printWindow.document.write(html);
-    printWindow.document.close();
+    // Load via a Blob URL instead of document.write(). A window opened with
+    // window.open("", "_blank") sits on "about:blank" — document.write()
+    // paints content onto it, but that content has no real source, so
+    // reloading the tab wipes it back to blank. Navigating to a blob: URL
+    // gives it an actual, reloadable source.
+    const blob = new Blob([html], { type: "text/html" });
+    const blobUrl = URL.createObjectURL(blob);
+    printWindow.location.href = blobUrl;
   };
 
   useEffect(() => {
@@ -397,15 +411,16 @@ function DatabasePage() {
           <div className="flex w-full flex-col gap-2 sm:flex-row sm:w-auto">
             <div className="w-full sm:w-[200px]">
               <Label className="text-xs">Agency</Label>
-              <Select value={agencyId} onValueChange={setAgencyId}>
-                <SelectTrigger className="w-full"><SelectValue placeholder="Select agency" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">ALL AGENCIES</SelectItem>
-                  {agencies.map((a) => (
-                    <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={agencyId}
+                onChange={setAgencyId}
+                placeholder="Select agency"
+                searchPlaceholder="Type to search agency..."
+                options={[
+                  { value: "all", label: "ALL AGENCIES" },
+                  ...agencies.map((a) => ({ value: String(a.id), label: a.name })),
+                ]}
+              />
             </div>
             <div className="w-full sm:w-[160px]">
               <Label className="text-xs">From</Label>
@@ -422,15 +437,16 @@ function DatabasePage() {
           <div className="flex w-full flex-col gap-2 sm:flex-row sm:w-auto">
             <div className="w-full sm:w-[200px]">
               <Label className="text-xs">MR</Label>
-              <Select value={mrId} onValueChange={setMrId}>
-                <SelectTrigger className="w-full"><SelectValue placeholder="Select MR" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">ALL MRs</SelectItem>
-                  {mrs.map((m) => (
-                    <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={mrId}
+                onChange={setMrId}
+                placeholder="Select MR"
+                searchPlaceholder="Type to search MR..."
+                options={[
+                  { value: "all", label: "ALL MRs" },
+                  ...mrs.map((m) => ({ value: String(m.id), label: m.name })),
+                ]}
+              />
             </div>
             <div className="w-full sm:w-[160px]">
               <Label className="text-xs">From</Label>
@@ -487,6 +503,7 @@ function DatabasePage() {
                   <th className="px-4 py-3 font-medium">Pax ID</th>
                   <th className="px-4 py-3 font-medium">Name</th>
                   <th className="px-4 py-3 font-medium">Agency</th>
+                  <th className="px-4 py-3 font-medium">MR</th>
                   <th className="px-4 py-3 font-medium">Report Status</th>
                   <th className="px-4 py-3 font-medium">X-Ray Result</th>
                   <th className="px-4 py-3 text-right font-medium">Total Fee (৳)</th>
@@ -499,7 +516,7 @@ function DatabasePage() {
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={12} className="px-4 py-6 text-center text-muted-foreground">
+                    <td colSpan={13} className="px-4 py-6 text-center text-muted-foreground">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 className="h-4 w-4 animate-spin text-primary" />
                         Loading records...
@@ -508,7 +525,7 @@ function DatabasePage() {
                   </tr>
                 ) : paginatedPatients.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="px-4 py-6 text-center text-muted-foreground">
+                    <td colSpan={13} className="px-4 py-6 text-center text-muted-foreground">
                       No matching patient records found.
                     </td>
                   </tr>
@@ -524,6 +541,7 @@ function DatabasePage() {
                         <td className="px-4 py-3 font-mono text-xs text-primary font-semibold whitespace-nowrap">{r.pax_id}</td>
                         <td className="px-4 py-3 font-medium whitespace-nowrap">{r.first_name} {r.last_name || ""}</td>
                         <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{r.agency?.name || "N/A"}</td>
+                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{r.mr?.name || "N/A"}</td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className={`inline-block whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-semibold border ${
                             reportStatus.toUpperCase() === "FIT"

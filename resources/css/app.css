@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Hind+Siliguri:wght@400;500;600;700&display=swap');
 @import "tailwindcss" source(none);
 @source "../js";
 @import "tw-animate-css";
@@ -43,8 +43,8 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-bengali: "Hind Siliguri", "Nirmala UI", "SolaimanLipi", "Kalpurush", sans-serif;
 }
 
@@ -185,6 +185,114 @@
     margin-right: 0 !important;
     overflow: visible !important;
   }
+}
+
+/* Pressing Ctrl+P directly on an app page (as opposed to using a page's own
+   "Print" button, which opens a separate clean print window) would otherwise
+   print the whole dashboard chrome as-is — sidebar, topbar, tab navigation,
+   action buttons and all. Several components already tag their non-printable
+   parts with `no-print` in anticipation of this, but no rule ever backed it
+   up. This makes that class actually take effect for the whole site. */
+/* A4 with the same margins the dedicated Invoice print popup uses, so a
+   direct Ctrl+P on the Entry Form page lines up with it instead of falling
+   back to the browser/printer driver's own default page size and margins. */
+@page {
+  size: A4;
+  margin: 8mm 12mm;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  /* With the sidebar/topbar/nav chrome hidden above, let the remaining page
+     content fill the sheet edge-to-edge instead of sitting in a small boxed
+     card in the middle of an otherwise-blank page. */
+  main {
+    padding: 0 !important;
+  }
+  main > div {
+    max-width: 100% !important;
+  }
+
+  /* Entry Form: the [220px sidebar | content] grid still reserves that
+     220px column even once the sidebar itself is hidden — collapse it to a
+     single column so the content takes the full width. */
+  .entry-form-main-grid {
+    display: block !important;
+  }
+  .entry-form-content-panel {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  /* Invoice / Invoice Zero on-screen preview: it's deliberately styled as a
+     white "paper" card for on-screen viewing (border, rounded corners,
+     shadow), but printing that card as-is looks like a small boxed receipt
+     floating on a blank page instead of filling it. Strip the card chrome
+     so it prints the same as the dedicated Print popup's clean layout —
+     including the same 140mm "half page" height cap that popup uses, so a
+     direct Ctrl+P matches it instead of running the full A4 page. */
+  .invoice-print-card {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 140mm !important;
+    overflow: hidden !important;
+  }
+}
+
+/* Shared "dark fields panel" look — used by Entry Form, Report Entry and
+   X-Ray Upload so all three data-entry forms share one consistent style.
+   The panel itself is a deliberate dark (#5c5c5c) background, but the
+   input/select/date/combobox controls inside it must stay light so typed
+   values remain legible against that dark backdrop — their own default
+   styling is transparent/theme-aware and would otherwise inherit the dark
+   panel color. */
+.dark-fields-panel input,
+.dark-fields-panel select,
+.dark-fields-panel button[role="combobox"],
+.dark-fields-panel textarea {
+  background-color: #ffffff !important;
+  color: #111111 !important;
+}
+.dark-fields-panel input::placeholder,
+.dark-fields-panel textarea::placeholder {
+  color: #6b7280 !important;
+}
+/* Disabled (read-only) fields: flatten into the dark panel instead of
+   showing a white box — just the text, in white, stays readable. */
+.dark-fields-panel input:disabled,
+.dark-fields-panel select:disabled,
+.dark-fields-panel textarea:disabled,
+.dark-fields-panel button[role="combobox"]:disabled {
+  opacity: 1 !important;
+  background-color: transparent !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+/* Default: hug the label text (chip-sized), not the full field width —
+   used by X-Ray Upload and Report Entry, where the label sits stacked
+   above a much wider input. Entry Form's own Field component sets its own
+   explicit `w-full block` Tailwind classes on the Label, which take over
+   from this default since this rule deliberately doesn't touch
+   width/display, so it stays full-width there as intended. */
+.dark-fields-panel label {
+  display: inline-block;
+  box-sizing: border-box;
+  color: #ffffff;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 4px;
 }
 
 @utility card-surface {

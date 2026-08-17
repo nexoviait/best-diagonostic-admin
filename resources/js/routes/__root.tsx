@@ -7,7 +7,7 @@ import {
   redirect,
   useRouterState,
 } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 
@@ -34,11 +34,9 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error(error);
   const router = useRouter();
   useEffect(() => {
-    // Log to console in development only
-    if (import.meta.env.DEV) console.error('[ErrorBoundary]', error);
+    console.error('[ErrorBoundary]', error);
   }, [error]);
 
   return (
@@ -50,11 +48,19 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <p className="mt-2 text-sm text-muted-foreground">
           Something went wrong on our end. You can try refreshing or head back home.
         </p>
+        {error?.message && (
+          <p className="mt-2 text-xs font-mono bg-muted/60 p-2 rounded text-destructive max-h-32 overflow-auto text-left break-words">
+            {error.message}
+          </p>
+        )}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
-              router.invalidate();
-              reset();
+              try {
+                router.invalidate();
+                reset();
+              } catch (_) {}
+              window.location.reload();
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
@@ -94,17 +100,32 @@ import { apiRequest, getToken, setToken } from "../lib/api";
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const isLoading = useRouterState({ select: (s) => s.status === "pending" });
+  const hasToken = typeof window !== "undefined" && !!localStorage.getItem("mediadmin_token");
 
-  const { data: user } = useQuery<any>({
+  const { data: user, isFetched: userFetched } = useQuery<any>({
     queryKey: ["currentUserProfile"],
     queryFn: () => apiRequest("/auth/me"),
-    enabled: typeof window !== "undefined" && !!localStorage.getItem("mediadmin_token"),
+    enabled: hasToken,
   });
 
-  const { data: settings } = useQuery<any>({
+  const { data: settings, isFetched: settingsFetched } = useQuery<any>({
     queryKey: ["public-settings"],
     queryFn: () => apiRequest("/public/site-settings"),
   });
+
+  // Standard app-boot splash: keep the SPA hidden behind a full-screen loader
+  // until the initial route has resolved AND the bootstrap data (auth check +
+  // site settings) both sides of the app read from have settled at least
+  // once. Only gates the very first load — subsequent navigations use the
+  // lighter `isLoading` overlay below, not this splash.
+  const [appReady, setAppReady] = useState(false);
+  useEffect(() => {
+    if (appReady) return;
+    const userReady = !hasToken || userFetched;
+    if (!isLoading && userReady && settingsFetched) {
+      setAppReady(true);
+    }
+  }, [appReady, isLoading, hasToken, userFetched, settingsFetched]);
 
   useEffect(() => {
     const companyName = user?.company_name_en || settings?.company_name_en || "MediAdmin";
@@ -158,13 +179,21 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {isLoading && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/50 backdrop-blur-sm transition-all duration-300">
+      {!appReady && (
+        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-3 bg-background">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading…</p>
         </div>
       )}
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <div style={{ visibility: appReady ? "visible" : "hidden" }}>
+        {isLoading && appReady && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/50 backdrop-blur-sm transition-all duration-300">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          </div>
+        )}
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+      </div>
       <Toaster position="top-right" richColors />
     </QueryClientProvider>
   );

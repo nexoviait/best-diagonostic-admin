@@ -212,7 +212,7 @@ function UsersPage() {
             {selectedId ? "Edit User Account" : "Add User Account"}
           </h3>
           
-          <div className="space-y-3">
+          <div className="dark-fields-panel space-y-3 rounded-xl border border-black/20 bg-[#5c5c5c] p-4">
             <div>
               <Label>Full Name {!selectedId && <span className="text-red-500">*</span>}</Label>
               <Input

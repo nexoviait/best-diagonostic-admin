@@ -41,6 +41,69 @@ export const Route = createFileRoute("/admin-report")({
   component: AdminReportPage,
 });
 
+// Fetches an image (e.g. the report header banner) and converts it to a
+// base64 data URL plus its natural dimensions, since jsPDF's addImage()
+// needs the image data itself (not a URL) and the aspect ratio is needed
+// to size it correctly instead of stretching/squashing it.
+function loadImageAsDataUrl(
+  url: string,
+): Promise<{ dataUrl: string; width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Canvas 2D context unavailable"));
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+      resolve({
+        dataUrl: canvas.toDataURL("image/png"),
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+      });
+    };
+    img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
+    img.src = url;
+  });
+}
+
+// jsPDF's built-in fonts (Helvetica etc.) only cover Latin characters —
+// handing them Bengali text renders as garbled mojibake instead of failing
+// loudly. Fetches the same Hind Siliguri font the rest of the site uses for
+// Bengali text and registers it with jsPDF so it can actually render it.
+let bengaliFontRegisteredOn: WeakSet<object> | null = null;
+async function ensureBengaliFont(doc: any): Promise<boolean> {
+  if (!bengaliFontRegisteredOn) bengaliFontRegisteredOn = new WeakSet();
+  if (bengaliFontRegisteredOn.has(doc)) return true;
+
+  try {
+    const response = await fetch("/fonts/HindSiliguri-Regular.ttf");
+    if (!response.ok) return false;
+    const buffer = await response.arrayBuffer();
+
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    const chunkSize = 0x8000; // process in chunks — spreading the whole
+    // array at once can exceed the call stack for a font this size.
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    const base64Font = btoa(binary);
+
+    doc.addFileToVFS("HindSiliguri-Regular.ttf", base64Font);
+    doc.addFont("HindSiliguri-Regular.ttf", "HindSiliguri", "normal");
+    bengaliFontRegisteredOn.add(doc);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function AdminReportPage() {
   // Default date boundaries: start of current month to today
   const defaultFrom = () => {
@@ -69,6 +132,15 @@ function AdminReportPage() {
   const [filterQuery, setFilterQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 25;
+
+  // Company branding (logo + name) for the exported PDF header, same source
+  // the Invoice print template uses, so the report matches the rest of the
+  // site's branded documents instead of a generic hardcoded title.
+  const { data: user } = useQuery<any>({
+    queryKey: ["currentUserProfile"],
+    queryFn: () => apiRequest("/auth/me"),
+    enabled: typeof window !== "undefined" && !!localStorage.getItem("mediadmin_token"),
+  });
 
   // Load dropdown lists
   const { data: agencies = [] } = useQuery<any[]>({
@@ -174,7 +246,7 @@ function AdminReportPage() {
       p.medical_fee || 0,
       p.received_amount || 0,
       p.due_amount || 0,
-      p.medical_report?.final_status || "Pending",
+      p.medical_report?.final_status || "Held up",
     ]);
 
     const csvContent = [
@@ -214,7 +286,7 @@ function AdminReportPage() {
           <td style="border: 1px solid #ccc; padding: 6px;">${p.medical_fee || 0}</td>
           <td style="border: 1px solid #ccc; padding: 6px;">${p.received_amount || 0}</td>
           <td style="border: 1px solid #ccc; padding: 6px;">${p.due_amount || 0}</td>
-          <td style="border: 1px solid #ccc; padding: 6px;">${p.medical_report?.final_status || "Pending"}</td>
+          <td style="border: 1px solid #ccc; padding: 6px;">${p.medical_report?.final_status || "Held up"}</td>
         </tr>
       `;
     });
@@ -294,35 +366,77 @@ function AdminReportPage() {
       const doc = new jsPDF("p", "mm", "a4");
       let pageNumber = 1;
 
-      const drawHeader = (docInstance: any) => {
-        // Slate accent bar at the top
-        docInstance.setFillColor(15, 23, 42);
-        docInstance.rect(0, 0, 210, 8, "F");
+      // Use the admin's uploaded report header banner (Site Settings →
+      // Account Info) instead of a hardcoded logo/company-name block, so
+      // this matches whatever header the site's other printed reports use.
+      const headerImage = user?.report_header_image_path
+        ? await loadImageAsDataUrl(user.report_header_image_path).catch(() => null)
+        : null;
 
-        docInstance.setFont("helvetica", "bold");
-        docInstance.setFontSize(14);
-        docInstance.setTextColor(15, 23, 42);
-        docInstance.text("BEST HEALTH DIAGNOSTIC LTD.", 14, 18);
+      const companyNameEn = user?.company_name_en || "BEST HEALTH DIAGNOSTIC LTD.";
+      const companyNameBn = user?.company_name_bn || "";
+      // Only needed for the plain-text fallback below (no header image
+      // configured) — jsPDF's default fonts can't render Bengali glyphs at
+      // all (they come out as garbled mojibake) without this registered.
+      const canRenderBengali =
+        !headerImage && companyNameBn ? await ensureBengaliFont(doc) : false;
 
-        docInstance.setFontSize(9);
+      const usableWidth = 182; // 14mm to 196mm — matches the table's own margins
+      const headerImageHeight = headerImage
+        ? (headerImage.height / headerImage.width) * usableWidth
+        : 0;
+
+      // Returns the y position content should start at below the header —
+      // the header image's height (and therefore the header's total
+      // height) varies with whatever banner the admin uploaded.
+      const drawHeader = (docInstance: any): number => {
+        let y = headerImage ? 2 : 10;
+
+        if (headerImage) {
+          try {
+            docInstance.addImage(headerImage.dataUrl, "PNG", 14, y, usableWidth, headerImageHeight);
+            y += headerImageHeight + 4;
+          } catch {
+            // Corrupt/unsupported image data — fall through to plain text below.
+          }
+        } else {
+          docInstance.setFont("helvetica", "bold");
+          docInstance.setFontSize(14);
+          docInstance.setTextColor(15, 23, 42);
+          docInstance.text(companyNameEn, 14, y + 6);
+          y += 6;
+
+          docInstance.setFontSize(9);
+          if (canRenderBengali) {
+            docInstance.setFont("HindSiliguri", "normal");
+            docInstance.setTextColor(71, 85, 105);
+            docInstance.text(companyNameBn, 14, y + 6);
+            docInstance.setFont("helvetica", "normal");
+          } else {
+            docInstance.setFont("helvetica", "normal");
+            docInstance.setTextColor(100, 116, 139);
+            docInstance.text("Admin Patient Summary Report", 14, y + 6);
+          }
+          y += 8;
+        }
+
         docInstance.setFont("helvetica", "normal");
+        docInstance.setFontSize(9);
         docInstance.setTextColor(100, 116, 139);
-        docInstance.text("Admin Patient Summary Report", 14, 23);
-
         const rangeText = `Period: ${filters.from_date || "All"} to ${filters.to_date || "All"}`;
-        docInstance.text(rangeText, 14, 28);
+        docInstance.text(rangeText, 14, y + 4);
 
         docInstance.setFontSize(8);
-        docInstance.text(`Page ${pageNumber}`, 190, 18);
+        docInstance.text(`Page ${pageNumber}`, 190, y + 4);
 
-        // Thin separator line
+        y += 8;
         docInstance.setDrawColor(226, 232, 240);
-        docInstance.line(14, 32, 196, 32);
+        docInstance.line(14, y, 196, y);
+
+        return y + 6;
       };
 
-      drawHeader(doc);
-
-      let y = 38;
+      let y = drawHeader(doc);
       // Visual box for summary figures on page 1
       doc.setFillColor(248, 250, 252);
       doc.roundedRect(14, y, 182, 14, 1.5, 1.5, "F");
@@ -364,8 +478,7 @@ function AdminReportPage() {
         if (y > 275) {
           doc.addPage();
           pageNumber++;
-          y = 35;
-          drawHeader(doc);
+          y = drawHeader(doc);
 
           // Render Table Header row background on the new page too
           doc.setFillColor(15, 23, 42);
@@ -742,7 +855,7 @@ function AdminReportPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 sm:flex-initial text-emerald-600 border-emerald-200 hover:bg-emerald-50/50 hover:text-emerald-700 font-medium"
+                    className="flex-1 sm:flex-initial"
                     onClick={handleExportCSV}
                   >
                     <FileSpreadsheet className="h-4 w-4 mr-1" />
@@ -751,7 +864,7 @@ function AdminReportPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 sm:flex-initial text-blue-600 border-blue-200 hover:bg-blue-50/50 hover:text-blue-700 font-medium"
+                    className="flex-1 sm:flex-initial"
                     onClick={handleExportWord}
                   >
                     <Download className="h-4 w-4 mr-1" />
@@ -760,7 +873,7 @@ function AdminReportPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 sm:flex-initial text-rose-600 border-rose-200 hover:bg-rose-50/50 hover:text-rose-700 font-medium"
+                    className="flex-1 sm:flex-initial"
                     onClick={handleExportPDF}
                   >
                     <Download className="h-4 w-4 mr-1" />
@@ -806,7 +919,7 @@ function AdminReportPage() {
                   ) : (
                     paginatedPatients.map((p: any, i: number) => {
                       const globalIndex = (currentPage - 1) * itemsPerPage + i + 1;
-                      const reportStatus = p.medical_report?.final_status || "Pending";
+                      const reportStatus = p.medical_report?.final_status || "Held up";
                       return (
                         <tr
                           key={p.id}

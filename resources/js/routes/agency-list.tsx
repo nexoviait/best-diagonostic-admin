@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Pencil, Trash2, Save, RefreshCw, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -23,16 +24,19 @@ function AgencyListPage() {
   const [mobileNo, setMobileNo] = useState("");
   const [address, setAddress] = useState("");
   const [status, setStatus] = useState("1");
+  const [isOneTime, setIsOneTime] = useState(false);
   const [filterQuery, setFilterQuery] = useState("");
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 25;
 
-  // Load agencies
+  // Load agencies — include_one_time=1 so this management page shows the
+  // full directory (one-time/walk-in agencies get a badge below), even
+  // though pickers like the Entry Form hide them by default.
   const { data: agencies = [], isLoading } = useQuery<any[]>({
-    queryKey: ["agencies"],
-    queryFn: () => apiRequest("/agencies"),
+    queryKey: ["agencies", "all"],
+    queryFn: () => apiRequest("/agencies?include_one_time=1"),
   });
 
   const { data: user } = useQuery<any>({
@@ -55,7 +59,7 @@ function AgencyListPage() {
     mutationFn: async () => {
       return apiRequest("/agencies", {
         method: "POST",
-        body: JSON.stringify({ name, price, contact_person: contactPerson, email, mobile_no: mobileNo, address, status }),
+        body: JSON.stringify({ name, price, contact_person: contactPerson, email, mobile_no: mobileNo, address, status, is_one_time: isOneTime }),
       });
     },
     onSuccess: () => {
@@ -67,6 +71,7 @@ function AgencyListPage() {
       setAddress("");
       setPrice(0);
       setStatus("1");
+      setIsOneTime(false);
       queryClient.invalidateQueries({ queryKey: ["agencies"] });
     },
     onError: (err: any) => {
@@ -80,7 +85,7 @@ function AgencyListPage() {
       if (!selectedId) return;
       return apiRequest(`/agencies/${selectedId}`, {
         method: "PUT",
-        body: JSON.stringify({ name, price, contact_person: contactPerson, email, mobile_no: mobileNo, address, status }),
+        body: JSON.stringify({ name, price, contact_person: contactPerson, email, mobile_no: mobileNo, address, status, is_one_time: isOneTime }),
       });
     },
     onSuccess: () => {
@@ -92,6 +97,7 @@ function AgencyListPage() {
       setAddress("");
       setPrice(0);
       setStatus("1");
+      setIsOneTime(false);
       setSelectedId(null);
       queryClient.invalidateQueries({ queryKey: ["agencies"] });
     },
@@ -131,6 +137,7 @@ function AgencyListPage() {
     setAddress(agency.address || "");
     setPrice(Number(agency.price) || 0);
     setStatus(agency.status || "1");
+    setIsOneTime(!!agency.is_one_time);
   };
 
   const handleClear = () => {
@@ -142,6 +149,7 @@ function AgencyListPage() {
     setAddress("");
     setPrice(0);
     setStatus("1");
+    setIsOneTime(false);
   };
 
   const filteredAgencies = agencies.filter((a) =>
@@ -167,7 +175,7 @@ function AgencyListPage() {
           <h3 className="font-display text-base font-semibold">
             {selectedId ? "Edit Agency Profile" : "Add New Agency"}
           </h3>
-          <div className="space-y-3">
+          <div className="dark-fields-panel space-y-3 rounded-xl border border-black/20 bg-[#5c5c5c] p-4">
             <div>
               <Label>Agency ID</Label>
               <Input placeholder={selectedId || "Auto"} disabled className="bg-slate-50" />
@@ -233,6 +241,19 @@ function AgencyListPage() {
                   <SelectItem value="0">Inactive</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="flex items-start gap-2 pt-1">
+              <Checkbox
+                id="agency-one-time"
+                checked={isOneTime}
+                onCheckedChange={(checked) => setIsOneTime(checked === true)}
+              />
+              <Label htmlFor="agency-one-time" className="font-normal leading-snug cursor-pointer">
+                One-time / walk-in agency
+                <span className="block text-xs text-white/70 font-normal">
+                  Won't show up in the Entry Form's agency picker once saved, so it doesn't clutter the list for future patients. Still stays here and in Database filters for record-keeping.
+                </span>
+              </Label>
             </div>
           </div>
           <div className="pt-2 flex gap-2">
@@ -316,7 +337,14 @@ function AgencyListPage() {
                       return (
                         <tr key={a.id} className="border-b border-border/40 last:border-0 hover:bg-muted/40 transition-colors">
                           <td className="px-5 py-3 font-mono text-xs text-slate-500">{globalIndex}</td>
-                          <td className="px-5 py-3 font-semibold text-slate-800">{a.name}</td>
+                          <td className="px-5 py-3 font-semibold text-slate-800">
+                            {a.name}
+                            {a.is_one_time && (
+                              <span className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-semibold border bg-amber-50 text-amber-700 border-amber-200 align-middle">
+                                ONE-TIME
+                              </span>
+                            )}
+                          </td>
                           <td className="px-5 py-3 text-slate-700 font-medium">{a.contact_person || "N/A"}</td>
                           <td className="px-5 py-3 text-slate-600 font-mono text-xs">{a.mobile_no || "N/A"}</td>
                           <td className="px-5 py-3 text-slate-600 text-xs">{a.email || "N/A"}</td>

@@ -64,7 +64,7 @@ function PasswordPage() {
               <p className="text-xs text-muted-foreground">Use at least 6 characters with a number and symbol.</p>
             </div>
           </div>
-          <div className="space-y-3">
+          <div className="dark-fields-panel space-y-3 rounded-xl border border-black/20 bg-[#5c5c5c] p-4">
             <div>
               <Label htmlFor="current-pw">Current password</Label>
               <Input

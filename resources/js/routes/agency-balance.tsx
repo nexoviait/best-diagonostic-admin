@@ -372,7 +372,7 @@ function AgencyBalancePage() {
 
   return (
     <DashboardShell title="Agency Balance" subtitle="Track invoices, receipts and dues per agency.">
-      <div className="card-surface p-5">
+      <div className="dark-fields-panel rounded-xl border border-black/20 bg-[#5c5c5c] p-5">
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex-1 min-w-[240px]">
             <Label className="text-xs">Agency</Label>
@@ -502,7 +502,7 @@ function AgencyBalancePage() {
       {canAddPayment && (
         <div className="card-surface p-5 space-y-4">
           <h3 className="font-display text-base font-semibold">Record Payment</h3>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="dark-fields-panel grid gap-4 rounded-xl border border-black/20 bg-[#5c5c5c] p-4 md:grid-cols-2">
             <div>
               <Label>Select Agency</Label>
               <Select value={payAgencyId} onValueChange={setPayAgencyId}>
