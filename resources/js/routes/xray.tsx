@@ -14,6 +14,7 @@ import { toastApiError } from "@/lib/toast-error";
 import { DatePicker } from "@/components/ui/date-picker";
 import { FieldError } from "@/components/ui/field-error";
 import { validateImageFile } from "@/lib/validate-image";
+import { compressImageFile } from "@/lib/image-compress";
 import { useFieldErrors } from "@/lib/use-field-errors";
 
 export const Route = createFileRoute("/xray")({ component: XrayPage });
@@ -32,9 +33,22 @@ function XrayPage() {
   const [imageError, setImageError] = useState<string | null>(null);
   const { fieldErrors, setFromError, clear } = useFieldErrors();
 
-  const handleXrayImageChange = (file: File | null) => {
-    setXrayImageFile(file);
-    setImageError(validateImageFile(file, { maxSizeKB: 2048 }));
+  const handleXrayImageChange = async (file: File | null) => {
+    if (!file) {
+      setXrayImageFile(null);
+      setImageError(null);
+      clear("xray_image");
+      return;
+    }
+    const compressed = await compressImageFile(file, {
+      maxWidth: 800,
+      maxHeight: 1000,
+      targetKB: 35,
+      quality: 0.72,
+    });
+    const finalFile = compressed || file;
+    setXrayImageFile(finalFile);
+    setImageError(validateImageFile(finalFile, { maxSizeKB: 2048 }));
     clear("xray_image");
   };
 

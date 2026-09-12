@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import { toastApiError } from "@/lib/toast-error";
 import { FieldError } from "@/components/ui/field-error";
 import { validateImageFile } from "@/lib/validate-image";
+import { compressImageFile } from "@/lib/image-compress";
 import { savePatientPhotoToFolder } from "@/lib/patientPhotoFolder";
 import { useFieldErrors } from "@/lib/use-field-errors";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -554,15 +555,41 @@ function EntryFormPage() {
         }
     }, [stream, cameraActive]);
 
-    const handleImageFileChange = (file: File | null) => {
-        setImageError(validateImageFile(file, { maxSizeKB: 2048 }));
-        setImageFile(file);
+    const handleImageFileChange = async (file: File | null) => {
+        if (!file) {
+            setImageError(null);
+            setImageFile(null);
+            clear("image");
+            return;
+        }
+        const compressed = await compressImageFile(file, {
+            maxWidth: 320,
+            maxHeight: 400,
+            targetKB: 15,
+            quality: 0.75,
+        });
+        const finalFile = compressed || file;
+        setImageError(validateImageFile(finalFile, { maxSizeKB: 2048 }));
+        setImageFile(finalFile);
         clear("image");
     };
 
-    const handleFingerprintFileChange = (file: File | null) => {
-        setFingerprintError(validateImageFile(file, { maxSizeKB: 2048 }));
-        setFingerprintFile(file);
+    const handleFingerprintFileChange = async (file: File | null) => {
+        if (!file) {
+            setFingerprintError(null);
+            setFingerprintFile(null);
+            clear("fingerprint");
+            return;
+        }
+        const compressed = await compressImageFile(file, {
+            maxWidth: 240,
+            maxHeight: 300,
+            targetKB: 5,
+            quality: 0.7,
+        });
+        const finalFile = compressed || file;
+        setFingerprintError(validateImageFile(finalFile, { maxSizeKB: 2048 }));
+        setFingerprintFile(finalFile);
         clear("fingerprint");
     };
 

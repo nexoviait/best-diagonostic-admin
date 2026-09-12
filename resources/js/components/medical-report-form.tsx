@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { toastApiError } from "@/lib/toast-error";
 import { MedicalReportView } from "@/components/medical-report-view";
 import { PadReportView } from "@/components/pad-report-view";
+import { waitForImagesToLoad } from "@/lib/wait-for-images";
 
 interface MedicalReportFormProps {
   mode: "general" | "malaysia";
@@ -358,6 +359,21 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
     }
   };
 
+  // window.print() prints whatever the DOM looks like right now — it
+  // doesn't wait for images to finish loading. On a slow/delayed connection
+  // the header/footer banner (or X-ray/fingerprint/QR images) can still be
+  // mid-fetch, so they'd print blank. Wait for them first.
+  const [isPreparingPrint, setIsPreparingPrint] = useState(false);
+  const handlePrintWhenReady = async () => {
+    setIsPreparingPrint(true);
+    try {
+      await waitForImagesToLoad();
+      window.print();
+    } finally {
+      setIsPreparingPrint(false);
+    }
+  };
+
   // NEXT / PREVIOUS Navigation — sorted ascending by ID so "NEXT" always
   // moves to the next-higher (newer) patient ID and "PREVIOUS" moves to the
   // next-lower (older) one, matching what the button labels say.
@@ -465,13 +481,15 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
           </div>
 
           {patient && activeTab === "Report" && (
-            <Button onClick={() => window.print()} className="bg-[#0f172a] hover:bg-[#1e293b] text-white text-xs gap-1.5 font-bold h-9 shrink-0">
-              <Printer className="h-3.5 w-3.5" /> Print Report
+            <Button onClick={handlePrintWhenReady} disabled={isPreparingPrint} className="bg-[#0f172a] hover:bg-[#1e293b] text-white text-xs gap-1.5 font-bold h-9 shrink-0">
+              {isPreparingPrint ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />}
+              {isPreparingPrint ? "Preparing…" : "Print Report"}
             </Button>
           )}
           {patient && activeTab === "Pad Report" && (
-            <Button onClick={() => window.print()} className="bg-[#0f172a] hover:bg-[#1e293b] text-white text-xs gap-1.5 font-bold h-9 shrink-0">
-              <Printer className="h-3.5 w-3.5" /> Print Pad Report
+            <Button onClick={handlePrintWhenReady} disabled={isPreparingPrint} className="bg-[#0f172a] hover:bg-[#1e293b] text-white text-xs gap-1.5 font-bold h-9 shrink-0">
+              {isPreparingPrint ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />}
+              {isPreparingPrint ? "Preparing…" : "Print Pad Report"}
             </Button>
           )}
         </div>

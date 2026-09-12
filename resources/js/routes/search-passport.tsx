@@ -6,6 +6,7 @@ import { Loader2, Download, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MedicalReportView } from "@/components/medical-report-view";
 import { toast } from "sonner";
+import { waitForImagesToLoad } from "@/lib/wait-for-images";
 
 export const Route = createFileRoute("/search-passport")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -19,7 +20,22 @@ export const Route = createFileRoute("/search-passport")({
 function SearchPassportPage() {
   const { PassportNo } = Route.useSearch() as { PassportNo: string };
   const [scale, setScale] = useState(1);
+  const [isPreparingPrint, setIsPreparingPrint] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // window.print() prints whatever the DOM looks like right now — it
+  // doesn't wait for images to finish loading. Patients on slow/mobile
+  // connections could get a print with the header/footer banner or QR
+  // code still blank. Wait for everything to actually load first.
+  const handlePrintWhenReady = async () => {
+    setIsPreparingPrint(true);
+    try {
+      await waitForImagesToLoad();
+      window.print();
+    } finally {
+      setIsPreparingPrint(false);
+    }
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -115,6 +131,7 @@ function SearchPassportPage() {
     } catch (error) {
       console.error("Failed to generate PDF dynamically:", error);
       toast.error("Couldn't generate the PDF directly — opening print dialog instead. Use \"Save as PDF\" there.");
+      await waitForImagesToLoad();
       window.print();
     }
   };
@@ -129,8 +146,8 @@ function SearchPassportPage() {
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-6">
           <div className="flex gap-2 w-full sm:w-auto">
-            <Button onClick={() => window.print()} className="flex-1 sm:flex-initial gradient-primary text-xs gap-1.5 font-bold justify-center">
-              <Printer className="h-3.5 w-3.5" /> Print Report
+            <Button onClick={handlePrintWhenReady} disabled={isPreparingPrint} className="flex-1 sm:flex-initial gradient-primary text-xs gap-1.5 font-bold justify-center">
+              {isPreparingPrint ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />} {isPreparingPrint ? "Preparing…" : "Print Report"}
             </Button>
             <Button onClick={handleDownloadPDF} className="flex-1 sm:flex-initial gradient-primary text-xs gap-1.5 font-bold justify-center">
               <Download className="h-3.5 w-3.5" /> Download PDF

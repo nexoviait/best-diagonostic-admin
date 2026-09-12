@@ -1,4 +1,5 @@
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
+import { preloadImageUrls } from "@/lib/wait-for-images";
 
 interface FormValues {
   height?: string;
@@ -75,8 +76,44 @@ export function PadReportView({
   const internalRef = useRef<HTMLDivElement>(null);
   const containerRef = externalContainerRef || internalRef;
 
+  const [photoError, setPhotoError] = useState(false);
+  const [fingerprintError, setFingerprintError] = useState(false);
+  const [xrayError, setXrayError] = useState(false);
+  const [signatureError, setSignatureError] = useState(false);
+
   const mr = patient?.medical_report || {};
   const xray = patient?.xray_report || {};
+
+  // Reset errors when patient changes
+  useEffect(() => {
+    setPhotoError(false);
+    setFingerprintError(false);
+    setXrayError(false);
+    setSignatureError(false);
+  }, [patient?.id]);
+
+  // Preload report images
+  useEffect(() => {
+    const urlsToPreload = [
+      patient?.image_url,
+      patient?.fingerprint_url,
+      xray?.image_url,
+      settings?.signature_physician_path,
+      typeof window !== "undefined"
+        ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`${window.location.origin}/search-passport?PassportNo=${patient?.passport_no || patient?.pax_id}`)}`
+        : "",
+    ];
+
+    preloadImageUrls(urlsToPreload, 2500);
+  }, [
+    patient?.id,
+    patient?.image_url,
+    patient?.fingerprint_url,
+    xray?.image_url,
+    settings?.signature_physician_path,
+    patient?.passport_no,
+    patient?.pax_id,
+  ]);
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return "";
@@ -377,8 +414,16 @@ export function PadReportView({
                   </table>
                 </div>
                 <div style={{ width: "80px", height: "100px", alignSelf: "flex-start", flexShrink: 0, border: cellBorder, backgroundColor: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", margin: "2px 0", overflow: "hidden" }}>
-                  {patient?.image_url ? (
-                    <img src={patient.image_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="Patient Photo" />
+                  {patient?.image_url && !photoError ? (
+                    <img
+                      src={patient.image_url}
+                      loading="eager"
+                      decoding="sync"
+                      crossOrigin="anonymous"
+                      onError={() => setPhotoError(true)}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      alt="Patient Photo"
+                    />
                   ) : (
                     <span style={{ fontSize: "12px", fontWeight: "bold", color: "#000000" }}>IMAGE</span>
                   )}
@@ -759,8 +804,16 @@ export function PadReportView({
                   <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                     {/* X-RAY Image Box */}
                     <div style={{ width: "130px", height: "145px", border: cellBorder, backgroundColor: "#f8d7da", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", overflow: "hidden", position: "relative" }}>
-                      {xray?.image_url ? (
-                        <img src={xray.image_url} alt="X-Ray" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      {xray?.image_url && !xrayError ? (
+                        <img
+                          src={xray.image_url}
+                          alt="X-Ray"
+                          loading="eager"
+                          decoding="sync"
+                          crossOrigin="anonymous"
+                          onError={() => setXrayError(true)}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
                       ) : (
                         <span style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>X-RAY</span>
                       )}
@@ -768,8 +821,16 @@ export function PadReportView({
 
                     {/* Fingerprint Circle */}
                     <div style={{ width: "80px", height: "80px", border: cellBorder, borderRadius: "50%", backgroundColor: "#f8d7da", display: "flex", justifyContent: "center", alignItems: "center", overflow: "hidden", position: "relative" }}>
-                      {patient?.fingerprint_url ? (
-                        <img src={patient.fingerprint_url} alt="Fingerprint" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      {patient?.fingerprint_url && !fingerprintError ? (
+                        <img
+                          src={patient.fingerprint_url}
+                          alt="Fingerprint"
+                          loading="eager"
+                          decoding="sync"
+                          crossOrigin="anonymous"
+                          onError={() => setFingerprintError(true)}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
                       ) : (
                         <span style={{ fontSize: "9px", fontWeight: "bold", color: "#000000", textTransform: "uppercase", textAlign: "center" }}>FINGERPRINT</span>
                       )}
@@ -779,8 +840,16 @@ export function PadReportView({
                   {/* Signature block */}
                   <div style={{ textAlign: "center", width: "155px" }}>
                     <div style={{ height: "55px", display: "flex", alignItems: "flex-end", justifyContent: "center", marginBottom: "3px" }}>
-                      {settings?.signature_physician_path ? (
-                        <img src={settings.signature_physician_path} style={{ maxHeight: "55px", maxWidth: "155px", width: "auto", objectFit: "contain" }} alt="Signature" />
+                      {settings?.signature_physician_path && !signatureError ? (
+                        <img
+                          src={settings.signature_physician_path}
+                          loading="eager"
+                          decoding="sync"
+                          crossOrigin="anonymous"
+                          onError={() => setSignatureError(true)}
+                          style={{ maxHeight: "55px", maxWidth: "155px", width: "auto", objectFit: "contain" }}
+                          alt="Signature"
+                        />
                       ) : (
                         <span style={{ fontSize: "11px", fontWeight: "bold", color: "#94a3b8" }}>Physician Sign</span>
                       )}
@@ -796,7 +865,14 @@ export function PadReportView({
             {/* Bottom Remarks / QR code section */}
             <div style={{ display: "flex", gap: "10px", alignItems: "flex-start", paddingTop: "6px", marginTop: "6px" }}>
               <div style={{ textAlign: "center", width: "70px", flexShrink: 0 }}>
-                <img src={qrCodeUrl} alt="QR Code" style={{ width: "70px", height: "70px", border: "1px solid #000" }} />
+                <img
+                  src={qrCodeUrl}
+                  alt="QR Code"
+                  loading="eager"
+                  decoding="sync"
+                  crossOrigin="anonymous"
+                  style={{ width: "70px", height: "70px", border: "1px solid #000" }}
+                />
               </div>
               <div style={{ flex: 1, fontSize: "14px", lineHeight: "1.35" }}>
                 <div>

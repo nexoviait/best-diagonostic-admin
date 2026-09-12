@@ -9,9 +9,11 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use App\Traits\StoresPublicUploads;
 
 class AuthController extends Controller
 {
+    use StoresPublicUploads;
     /**
      * Get a JWT via given credentials.
      */
@@ -159,31 +161,19 @@ class AuthController extends Controller
         $data = $validator->validated();
         $updates = array_intersect_key($data, array_flip($allowedFields));
 
-        // Process file uploads — sanitize filenames to prevent path traversal
+        // Process file uploads with automatic compression and sanitization
         $fileFields = [
-            'logo_image'            => ['rel' => 'uploads/company',    'column' => 'logo_path',                    'prefix' => 'logo'],
-            'signature_physician'   => ['rel' => 'uploads/signatures', 'column' => 'signature_physician_path',     'prefix' => 'physician'],
-            'signature_radiologist' => ['rel' => 'uploads/signatures', 'column' => 'signature_radiologist_path',   'prefix' => 'radiologist'],
-            'signature_authorised'  => ['rel' => 'uploads/signatures', 'column' => 'signature_authorised_path',    'prefix' => 'authorised'],
-            'report_header_image'   => ['rel' => 'uploads/reports',    'column' => 'report_header_image_path',     'prefix' => 'header'],
-            'report_footer_image'   => ['rel' => 'uploads/reports',    'column' => 'report_footer_image_path',     'prefix' => 'footer'],
+            'logo_image'            => ['subDir' => 'company',    'column' => 'logo_path',                  'prefix' => 'logo'],
+            'signature_physician'   => ['subDir' => 'signatures', 'column' => 'signature_physician_path',   'prefix' => 'physician'],
+            'signature_radiologist' => ['subDir' => 'signatures', 'column' => 'signature_radiologist_path', 'prefix' => 'radiologist'],
+            'signature_authorised'  => ['subDir' => 'signatures', 'column' => 'signature_authorised_path',  'prefix' => 'authorised'],
+            'report_header_image'   => ['subDir' => 'reports',    'column' => 'report_header_image_path',   'prefix' => 'header'],
+            'report_footer_image'   => ['subDir' => 'reports',    'column' => 'report_footer_image_path',   'prefix' => 'footer'],
         ];
 
         foreach ($fileFields as $inputName => $config) {
             if ($request->hasFile($inputName)) {
-                $file      = $request->file($inputName);
-                $ext       = $file->getClientOriginalExtension();
-                // SECURITY: sanitize filename — no original client filename, use prefix + timestamp + random string
-                $safeName  = $config['prefix'] . '_' . time() . '_' . Str::random(8) . '.' . $ext;
-                $dir       = public_path($config['rel']);
-
-                if (!is_dir($dir)) {
-                    mkdir($dir, 0755, true);
-                }
-
-                $file->move($dir, $safeName);
-
-                $updates[$config['column']] = '/' . $config['rel'] . '/' . $safeName;
+                $updates[$config['column']] = $this->storePublicUpload($request->file($inputName), $config['subDir'], $config['prefix']);
             }
         }
 

@@ -1,4 +1,5 @@
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
+import { preloadImageUrls } from "@/lib/wait-for-images";
 
 interface FormValues {
   height?: string;
@@ -75,6 +76,13 @@ export function MedicalReportView({
   const internalRef = useRef<HTMLDivElement>(null);
   const containerRef = externalContainerRef || internalRef;
 
+  const [photoError, setPhotoError] = useState(false);
+  const [fingerprintError, setFingerprintError] = useState(false);
+  const [xrayError, setXrayError] = useState(false);
+  const [footerImgError, setFooterImgError] = useState(false);
+  const [headerImgError, setHeaderImgError] = useState(false);
+  const [signatureError, setSignatureError] = useState(false);
+
   const mr = patient?.medical_report || {};
   const xray = patient?.xray_report || {};
 
@@ -83,6 +91,45 @@ export function MedicalReportView({
   const companyNameBn = settings?.company_name_bn || "বেস্ট হেলথ্ ডায়াগনস্টিক লিমিটেড";
   const companyAddressEn = settings?.company_address_en || "1/A, D.I.T Extention Road, Alauddin Bhaban (3rd Floor), Fakirapool, Motijheel, Dhaka-1000";
   const companyPhoneEn = settings?.company_phone_en || "Phone: 01618888911, 01841775991, 01770044337, email: besthealth.bhdl@gmail.com";
+
+  // Reset errors when patient or settings change
+  useEffect(() => {
+    setPhotoError(false);
+    setFingerprintError(false);
+    setXrayError(false);
+    setFooterImgError(false);
+    setHeaderImgError(false);
+    setSignatureError(false);
+  }, [patient?.id, settings?.logo_path, settings?.report_footer_image_path]);
+
+  // Preload all critical report images in background so they render instantaneously
+  useEffect(() => {
+    const urlsToPreload = [
+      settings?.report_header_image_path,
+      settings?.report_footer_image_path,
+      logoSrc,
+      patient?.image_url,
+      patient?.fingerprint_url,
+      xray?.image_url,
+      settings?.signature_physician_path,
+      typeof window !== "undefined"
+        ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`${window.location.origin}/search-passport?PassportNo=${patient?.passport_no || patient?.pax_id}`)}`
+        : "",
+    ];
+
+    preloadImageUrls(urlsToPreload, 2500);
+  }, [
+    patient?.id,
+    patient?.image_url,
+    patient?.fingerprint_url,
+    xray?.image_url,
+    settings?.report_footer_image_path,
+    settings?.report_header_image_path,
+    logoSrc,
+    settings?.signature_physician_path,
+    patient?.passport_no,
+    patient?.pax_id,
+  ]);
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return "";
@@ -339,7 +386,7 @@ export function MedicalReportView({
         >
           {/* Background Watermark */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 select-none opacity-[0.12] print:opacity-[0.12]">
-            <img src={logoSrc} style={{ width: "600px", height: "auto", objectFit: "contain" }} alt="Watermark" />
+            <img src={logoSrc} loading="eager" decoding="sync" crossOrigin="anonymous" style={{ width: "600px", height: "auto", objectFit: "contain" }} alt="Watermark" />
           </div>
 
           <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", flex: 1, justifyContent: "flex-start", height: "100%" }}>
@@ -358,10 +405,14 @@ export function MedicalReportView({
                 }}
               >
                 <div>
-                  {settings?.report_header_image_path ? (
+                  {settings?.report_header_image_path && !headerImgError ? (
                     <img
                       src={settings.report_header_image_path}
                       alt="Report Header"
+                      loading="eager"
+                      decoding="sync"
+                      crossOrigin="anonymous"
+                      onError={() => setHeaderImgError(true)}
                       style={{ width: "100%", height: "auto", display: "block", marginTop: "0px" }}
                     />
                   ) : (
@@ -377,7 +428,7 @@ export function MedicalReportView({
 
                       {/* Report Header Logo & Title */}
                       <div className="flex items-center gap-4 pb-1 mb-1 relative z-10">
-                        <img src={logoSrc} className="h-12 w-auto object-contain shrink-0" alt="Best Logo" />
+                        <img src={logoSrc} loading="eager" decoding="sync" crossOrigin="anonymous" className="h-12 w-auto object-contain shrink-0" alt="Best Logo" />
                         <div className="flex-1 text-left">
                           <h1 className="text-[20px] font-black text-red-600 leading-none tracking-tight font-display" style={{ margin: 0, padding: 0 }}>{companyNameEn}</h1>
                           <h2 className="text-[16px] font-bold text-[#16a34a] leading-none font-bengali mt-1" style={{ margin: 0, padding: 0 }}>{companyNameBn}</h2>
@@ -444,8 +495,16 @@ export function MedicalReportView({
                   </table>
                 </div>
                 <div style={{ width: "80px", flexShrink: 0, border: cellBorder, backgroundColor: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", margin: "2px 0", boxSizing: "border-box", overflow: "hidden" }}>
-                  {patient?.image_url ? (
-                    <img src={patient.image_url} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="Patient Photo" />
+                  {patient?.image_url && !photoError ? (
+                    <img
+                      src={patient.image_url}
+                      loading="eager"
+                      decoding="sync"
+                      crossOrigin="anonymous"
+                      onError={() => setPhotoError(true)}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      alt="Patient Photo"
+                    />
                   ) : (
                     <span style={{ fontSize: "12px", fontWeight: "bold", color: "#000000" }}>IMAGE</span>
                   )}
@@ -826,8 +885,16 @@ export function MedicalReportView({
                     <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                       {/* X-RAY Image Box */}
                       <div style={{ width: "140px", height: "150px", border: cellBorder, backgroundColor: "#f8d7da", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", overflow: "hidden", position: "relative" }}>
-                        {xray?.image_url ? (
-                          <img src={xray.image_url} alt="X-Ray" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        {xray?.image_url && !xrayError ? (
+                          <img
+                            src={xray.image_url}
+                            alt="X-Ray"
+                            loading="eager"
+                            decoding="sync"
+                            crossOrigin="anonymous"
+                            onError={() => setXrayError(true)}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          />
                         ) : (
                           <span style={{ fontSize: "11px", fontWeight: "bold", color: "#000000" }}>X-RAY</span>
                         )}
@@ -835,8 +902,16 @@ export function MedicalReportView({
 
                       {/* Fingerprint Circle */}
                       <div style={{ width: "68px", height: "68px", border: cellBorder, borderRadius: "50%", backgroundColor: "#f8d7da", display: "flex", justifyContent: "center", alignItems: "center", overflow: "hidden", position: "relative" }}>
-                        {patient?.fingerprint_url ? (
-                          <img src={patient.fingerprint_url} alt="Fingerprint" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        {patient?.fingerprint_url && !fingerprintError ? (
+                          <img
+                            src={patient.fingerprint_url}
+                            alt="Fingerprint"
+                            loading="eager"
+                            decoding="sync"
+                            crossOrigin="anonymous"
+                            onError={() => setFingerprintError(true)}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          />
                         ) : (
                           <span style={{ fontSize: "8px", fontWeight: "bold", color: "#000000", textTransform: "uppercase", textAlign: "center" }}>FINGERPRINT</span>
                         )}
@@ -846,8 +921,16 @@ export function MedicalReportView({
                     {/* Signature block */}
                     <div style={{ textAlign: "center", width: "155px" }}>
                       <div style={{ height: "45px", display: "flex", alignItems: "flex-end", justifyContent: "center", marginBottom: "3px" }}>
-                        {settings?.signature_physician_path ? (
-                          <img src={settings.signature_physician_path} style={{ maxHeight: "45px", maxWidth: "155px", width: "auto", objectFit: "contain" }} alt="Signature" />
+                        {settings?.signature_physician_path && !signatureError ? (
+                          <img
+                            src={settings.signature_physician_path}
+                            loading="eager"
+                            decoding="sync"
+                            crossOrigin="anonymous"
+                            onError={() => setSignatureError(true)}
+                            style={{ maxHeight: "45px", maxWidth: "155px", width: "auto", objectFit: "contain" }}
+                            alt="Signature"
+                          />
                         ) : (
                           <span style={{ fontSize: "11px", fontWeight: "bold", color: "#94a3b8" }}>Physician Sign</span>
                         )}
@@ -863,7 +946,14 @@ export function MedicalReportView({
               {/* Bottom Remarks / QR code section */}
               <div style={{ display: "flex", gap: "8px", alignItems: "flex-start", paddingTop: "2px", marginTop: "2px" }}>
                 <div style={{ textAlign: "center", width: "55px", flexShrink: 0 }}>
-                  <img src={qrCodeUrl} alt="QR Code" crossOrigin="anonymous" style={{ width: "55px", height: "55px", border: "1px solid #000" }} />
+                  <img
+                    src={qrCodeUrl}
+                    alt="QR Code"
+                    loading="eager"
+                    decoding="sync"
+                    crossOrigin="anonymous"
+                    style={{ width: "55px", height: "55px", border: "1px solid #000" }}
+                  />
                 </div>
                 <div style={{ flex: 1, fontSize: "12px", lineHeight: "1.25" }}>
                   <div>
@@ -900,10 +990,14 @@ export function MedicalReportView({
                 </p>
 
                 <div style={{ marginTop: "1px" }}>
-                  {settings?.report_footer_image_path ? (
+                  {settings?.report_footer_image_path && !footerImgError ? (
                     <img
                       src={settings.report_footer_image_path}
                       alt="Report Footer"
+                      loading="eager"
+                      decoding="sync"
+                      crossOrigin="anonymous"
+                      onError={() => setFooterImgError(true)}
                       className="w-full h-auto object-contain mx-auto"
                     />
                   ) : (
