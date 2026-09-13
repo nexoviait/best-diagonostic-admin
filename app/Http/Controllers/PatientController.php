@@ -255,7 +255,7 @@ class PatientController extends Controller
             // Auto-create blank Medical Report
             MedicalReport::create([
                 'patient_id'   => $patient->id,
-                'final_status' => 'Held up',
+                'final_status' => 'Fit',
                 'is_online'    => 'No',
                 'hbsag'        => 'N/A',
                 'hcv'          => 'N/A',

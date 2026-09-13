@@ -1,9 +1,11 @@
-php import asyncio
+import asyncio
 import base64
+import contextlib
 import ctypes
 import io
 import json
 import os
+import ssl
 import sys
 import threading
 import time
@@ -11,10 +13,21 @@ from datetime import datetime
 
 import websockets
 from PIL import Image
+from websockets.http11 import Response
+from websockets.datastructures import Headers
 
 DLL_PATH = r"C:\Windows\System32\libzkfp.dll"
 WS_HOST = "127.0.0.1"
 WS_PORT = 8765
+# The Entry Form is now served over HTTPS in production. Browsers block a
+# plain (insecure) ws:// connection from an https:// page except for a
+# loopback exemption that isn't reliable across every browser/version, so
+# this bridge also serves a TLS-secured WebSocket on WSS_PORT using a
+# bundled self-signed certificate for 127.0.0.1/localhost. The frontend
+# picks whichever one matches the page's own protocol.
+WSS_PORT = 8766
+CERT_FILE = "bridge_cert.pem"
+KEY_FILE = "bridge_key.pem"
 POLL_INTERVAL = 0.06
 RECONNECT_INTERVAL = 3.0
 CAPTURE_COOLDOWN = 2.0
@@ -24,6 +37,44 @@ MAX_CONSECUTIVE_HW_ERRORS = 40
 BASE_DIR = os.path.dirname(os.path.abspath(sys.argv[0]))
 CAPTURES_DIR = os.path.join(BASE_DIR, "captures")
 os.makedirs(CAPTURES_DIR, exist_ok=True)
+
+# PyInstaller unpacks bundled data files into a temp dir exposed as
+# sys._MEIPASS at runtime; fall back to BASE_DIR when running from source.
+RESOURCE_DIR = getattr(sys, "_MEIPASS", BASE_DIR)
+
+
+def build_ssl_context():
+    cert_path = os.path.join(RESOURCE_DIR, CERT_FILE)
+    key_path = os.path.join(RESOURCE_DIR, KEY_FILE)
+    if not (os.path.exists(cert_path) and os.path.exists(key_path)):
+        return None
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(cert_path, key_path)
+    return ctx
+
+
+# A plain HTTPS GET (someone opening https://127.0.0.1:8766 directly in a
+# browser, rather than the page's JS opening a WebSocket) doesn't carry the
+# WebSocket upgrade headers — respond with a small friendly page instead of
+# a protocol error. Visiting this once is also how the operator accepts the
+# self-signed certificate's browser warning, which a WebSocket connection
+# alone can't prompt for.
+async def process_request(connection, request):
+    if request.headers.get("Upgrade", "").lower() == "websocket":
+        return None
+    body = (
+        b"<!doctype html><html><head><title>ZK4500 Bridge</title></head>"
+        b"<body style='font-family:sans-serif;padding:40px;text-align:center;color:#222'>"
+        b"<h2>ZK4500 Fingerprint Bridge is running.</h2>"
+        b"<p>You can close this tab now &mdash; the Entry Form will connect automatically.</p>"
+        b"</body></html>"
+    )
+    return Response(
+        200,
+        "OK",
+        Headers([("Content-Type", "text/html; charset=utf-8"), ("Content-Length", str(len(body)))]),
+        body,
+    )
 
 
 class ScannerState:
@@ -278,8 +329,38 @@ class Bridge:
     async def run(self):
         self.loop = asyncio.get_running_loop()
         threading.Thread(target=self.hardware_loop, daemon=True).start()
-        async with websockets.serve(self.handler, WS_HOST, WS_PORT):
+
+        ssl_context = build_ssl_context()
+        servers = [websockets.serve(self.handler, WS_HOST, WS_PORT)]
+        if ssl_context is not None:
+            servers.append(
+                websockets.serve(
+                    self.handler,
+                    WS_HOST,
+                    WSS_PORT,
+                    ssl=ssl_context,
+                    process_request=process_request,
+                )
+            )
+        else:
+            print(
+                f"[warn] {CERT_FILE}/{KEY_FILE} not found next to the bridge — "
+                f"secure wss://{WS_HOST}:{WSS_PORT} disabled. The Entry Form's "
+                "fingerprint scan won't work when the site is loaded over HTTPS.",
+                flush=True,
+            )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for server in servers:
+                await stack.enter_async_context(server)
             print(f"ZK4500 Fingerprint Bridge listening on ws://{WS_HOST}:{WS_PORT}", flush=True)
+            if ssl_context is not None:
+                print(f"Secure bridge also listening on wss://{WS_HOST}:{WSS_PORT}", flush=True)
+                print(
+                    f"First time only: open https://{WS_HOST}:{WSS_PORT} in the browser "
+                    "you use for the Entry Form and accept the security warning once.",
+                    flush=True,
+                )
             print("Keep this window open while using the fingerprint scanner.", flush=True)
             await asyncio.Future()
 

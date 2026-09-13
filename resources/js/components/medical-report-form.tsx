@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { toastApiError } from "@/lib/toast-error";
 import { MedicalReportView } from "@/components/medical-report-view";
 import { PadReportView } from "@/components/pad-report-view";
-import { waitForImagesToLoad } from "@/lib/wait-for-images";
+import { waitForImagesToLoad, preloadImageUrls } from "@/lib/wait-for-images";
 
 interface MedicalReportFormProps {
   mode: "general" | "malaysia";
@@ -186,7 +186,7 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
   const [comments, setComments] = useState("");
   const [info, setInfo] = useState("N/A");
   const [onLine, setOnLine] = useState("N/A");
-  const [finalStatus, setFinalStatus] = useState("Held up");
+  const [finalStatus, setFinalStatus] = useState("Fit");
 
   // Fetch all patients for Next/Previous pagination
   const { data: allPatients = [] } = useQuery<any[]>({
@@ -264,7 +264,7 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
       setComments(mr.comments || "");
       setInfo(mr.info || "N/A");
       setOnLine(mr.on_line || "N/A");
-      setFinalStatus(mr.final_status || "Held up");
+      setFinalStatus(mr.final_status || "Fit");
     } else {
       // Reset form to defaults
       setHeight("");
@@ -321,7 +321,7 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
       setComments("");
       setInfo("N/A");
       setOnLine("N/A");
-      setFinalStatus("Held up");
+      setFinalStatus("Fit");
     }
   };
 
@@ -363,10 +363,28 @@ export function MedicalReportForm({ mode }: MedicalReportFormProps) {
   // doesn't wait for images to finish loading. On a slow/delayed connection
   // the header/footer banner (or X-ray/fingerprint/QR images) can still be
   // mid-fetch, so they'd print blank. Wait for them first.
+  //
+  // Clicking NEXT/PREVIOUS then immediately Print is the case that used to
+  // slip through: MedicalReportView's own preload effect (triggered by the
+  // new `patient` prop) and this print handler could both fire in the same
+  // tick, so waitForImagesToLoad() would check the DOM's <img> tags before
+  // React had even re-rendered them for the new patient. Explicitly
+  // preloading the same known report image URLs here first — independent
+  // of whatever's currently attached to the DOM — closes that gap.
   const [isPreparingPrint, setIsPreparingPrint] = useState(false);
   const handlePrintWhenReady = async () => {
     setIsPreparingPrint(true);
     try {
+      const xray = patient?.xray_report || {};
+      await preloadImageUrls([
+        settings?.report_header_image_path,
+        settings?.report_footer_image_path,
+        settings?.logo_path,
+        settings?.signature_physician_path,
+        patient?.image_url,
+        patient?.fingerprint_url,
+        xray?.image_url,
+      ]);
       await waitForImagesToLoad();
       window.print();
     } finally {

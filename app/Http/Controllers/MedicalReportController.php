@@ -24,7 +24,7 @@ class MedicalReportController extends Controller
         if (!$report) {
             $report = MedicalReport::create([
                 'patient_id' => $patient->id,
-                'final_status' => 'Held up',
+                'final_status' => 'Fit',
                 'is_online' => 'No',
                 'hbsag' => 'N/A',
                 'hcv' => 'N/A',
@@ -128,7 +128,7 @@ class MedicalReportController extends Controller
             array_merge($validator->validated(), [
                 'patient_id' => $patient->id,
                 // Ensure proper capitalization for status matches
-                'final_status' => ucfirst(strtolower($request->final_status ?? 'Held up')),
+                'final_status' => ucfirst(strtolower($request->final_status ?? 'Fit')),
                 'is_online' => ucfirst(strtolower($request->is_online ?? 'No'))
             ])
         );

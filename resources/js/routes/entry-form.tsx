@@ -593,9 +593,16 @@ function EntryFormPage() {
         clear("fingerprint");
     };
 
-    // The local ZK4500 bridge always listens on this fixed port; it auto-detects
+    // The local ZK4500 bridge always listens on these fixed ports; it auto-detects
     // and auto-connects to the scanner on its own, we just reflect its status.
-    const SCANNER_WS_URL = "ws://127.0.0.1:8765";
+    // Browsers block a plain (insecure) ws:// connection from an https:// page
+    // (the loopback exemption isn't reliable everywhere), so on HTTPS pages we
+    // connect to the bridge's TLS-secured wss:// listener instead — same bridge,
+    // same local machine, just the encrypted port with its bundled certificate.
+    const SCANNER_WS_URL =
+        typeof window !== "undefined" && window.location.protocol === "https:"
+            ? "wss://127.0.0.1:8766"
+            : "ws://127.0.0.1:8765";
     const scannerReconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(
         null,
     );
@@ -2797,6 +2804,30 @@ function EntryFormPage() {
                                             >
                                                 Download Scanner Bridge (EXE)
                                             </a>
+                                            {typeof window !== "undefined" &&
+                                                window.location.protocol ===
+                                                "https:" && (
+                                                    <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 mt-1">
+                                                        <strong>
+                                                            First time only:
+                                                        </strong>{" "}
+                                                        after running the
+                                                        bridge, open{" "}
+                                                        <a
+                                                            href="https://127.0.0.1:8766"
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="underline font-semibold"
+                                                        >
+                                                            https://127.0.0.1:8766
+                                                        </a>{" "}
+                                                        in this browser and
+                                                        click "Advanced →
+                                                        Proceed" on the
+                                                        security warning, then
+                                                        come back and Retry.
+                                                    </p>
+                                                )}
                                         </div>
                                         <div className="flex items-center gap-2 mt-2">
                                             <Button

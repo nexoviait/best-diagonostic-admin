@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { preloadImageUrls } from "@/lib/wait-for-images";
+import { combineOverallStatus } from "@/lib/report-status";
 
 interface FormValues {
   height?: string;
@@ -287,7 +288,10 @@ export function MedicalReportView({
   const vdrlVal = getValue(formValues?.vdrl, mr.vdrl, "N/A");
 
   const commentsVal = getValue(formValues?.comments, mr.comments, "N/A");
-  const finalStatusVal = getValue(formValues?.finalStatus, mr.final_status, "Pending");
+  const reportStatusVal = getValue(formValues?.finalStatus, mr.final_status, "Pending");
+  // Overall verdict = the worse of the Report Entry status and the X-ray
+  // finding — see combineOverallStatus for the exact rule.
+  const finalStatusVal = combineOverallStatus(reportStatusVal, xray);
 
   return (
     <div
@@ -965,7 +969,12 @@ export function MedicalReportView({
                     <strong style={{ fontSize: "12px" }}>Info:</strong>
                     <span
                       style={{
-                        backgroundColor: (finalStatusVal || "UNFIT").toUpperCase() === "FIT" ? "#16a34a" : "#dc2626",
+                        backgroundColor:
+                          finalStatusVal.toUpperCase() === "FIT"
+                            ? "#16a34a"
+                            : finalStatusVal.toUpperCase() === "UNFIT"
+                              ? "#dc2626"
+                              : "#d97706",
                         color: "#ffffff",
                         fontWeight: "bold",
                         padding: "2px 8px",
@@ -973,7 +982,7 @@ export function MedicalReportView({
                         display: "inline-block",
                       }}
                     >
-                      {(finalStatusVal || "UNFIT").toUpperCase()}
+                      {finalStatusVal.toUpperCase()}
                     </span>
                   </div>
                   <div style={{ marginTop: "2px", fontSize: "12px" }}>
