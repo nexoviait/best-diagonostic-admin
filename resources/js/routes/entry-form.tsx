@@ -2793,16 +2793,30 @@ function EntryFormPage() {
                                         </div>
                                         <div className="mt-1 flex flex-col items-center gap-2 border border-dashed rounded-md p-3 bg-slate-50 w-full">
                                             <p className="text-[11px] text-muted-foreground font-medium">
-                                                To run the scanner on this PC,
-                                                download and run the bridge
-                                                utility (unzip it first):
+                                                To run the scanner on this
+                                                PC, download the bridge
+                                                utility, then rename the
+                                                downloaded file's extension
+                                                from{" "}
+                                                <code className="bg-slate-200 px-1 rounded">
+                                                    .bridgepkg
+                                                </code>{" "}
+                                                to{" "}
+                                                <code className="bg-slate-200 px-1 rounded">
+                                                    .exe
+                                                </code>{" "}
+                                                before running it (some
+                                                antivirus tools flag unknown
+                                                .exe downloads by mistake —
+                                                this file is safe, we wrote
+                                                it ourselves):
                                             </p>
                                             <a
-                                                href="/drivers/ZK4500_Web_Bridge.zip"
+                                                href="/drivers/ZK4500_Web_Bridge.bridgepkg"
                                                 download
                                                 className="inline-flex items-center justify-center rounded-md text-xs font-semibold ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-4 py-1.5 shadow"
                                             >
-                                                Download Scanner Bridge (ZIP)
+                                                Download Scanner Bridge
                                             </a>
                                             {typeof window !== "undefined" &&
                                                 window.location.protocol ===
