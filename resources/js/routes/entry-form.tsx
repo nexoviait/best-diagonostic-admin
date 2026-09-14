@@ -2795,14 +2795,14 @@ function EntryFormPage() {
                                             <p className="text-[11px] text-muted-foreground font-medium">
                                                 To run the scanner on this PC,
                                                 download and run the bridge
-                                                utility:
+                                                utility (unzip it first):
                                             </p>
                                             <a
-                                                href="/drivers/ZK4500_Web_Bridge.exe"
+                                                href="/drivers/ZK4500_Web_Bridge.zip"
                                                 download
                                                 className="inline-flex items-center justify-center rounded-md text-xs font-semibold ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-4 py-1.5 shadow"
                                             >
-                                                Download Scanner Bridge (EXE)
+                                                Download Scanner Bridge (ZIP)
                                             </a>
                                             {typeof window !== "undefined" &&
                                                 window.location.protocol ===
