@@ -21,7 +21,7 @@ interface MedicalReportFormProps {
 const testOptions = ["N/A", "Negative", "Positive"];
 const vdrlOptions = ["N/A", "Non-Reactive", "Reactive"];
 const herniaOptions = ["N/A", "Absent", "Present"];
-const bloodGroupOptions = ["O+ve", "A+ve", "B+ve", "AB+ve", "O-ve", "A-ve", "B-ve", "AB-ve"];
+const bloodGroupOptions = ["N/A", "O+ve", "A+ve", "B+ve", "AB+ve", "O-ve", "A-ve", "B-ve", "AB-ve"];
 const ecgOptions = ["N/A", "Normal", "Abnormal"];
 const varicoseVeinsOptions = ["N/A", "Negative", "Positive"];
 const psychiatryOptions = ["N/A", "Normal", "Abnormal"];
