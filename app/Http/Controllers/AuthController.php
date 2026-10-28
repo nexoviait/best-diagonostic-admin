@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use App\Traits\StoresPublicUploads;
+use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
 
 class AuthController extends Controller
 {
@@ -97,11 +98,39 @@ class AuthController extends Controller
     }
 
     /**
-     * Refresh a token.
+     * Swap a token for a fresh one.
+     *
+     * This route is deliberately NOT behind auth:api: that middleware rejects an expired
+     * access token before we get here, which would make refresh useless exactly when it is
+     * needed (app reopened hours later). The JWT library itself only refreshes a token that
+     * is still inside the refresh window (JWT_REFRESH_TTL) and not blacklisted.
      */
     public function refresh()
     {
-        return $this->respondWithToken(Auth::guard('api')->refresh());
+        $guard = Auth::guard('api');
+
+        try {
+            $oldToken = (string) $guard->getToken();
+            $newToken = $guard->refresh();
+            $user = $guard->setToken($newToken)->user();
+        } catch (JWTException $e) {
+            return response()->json(['error' => 'Session expired, please log in again'], 401);
+        }
+
+        if (! $user || $user->status !== '1') {
+            $guard->invalidate();
+            return response()->json(['error' => 'Account is inactive'], 403);
+        }
+
+        // A password change ends every older session: a token issued before it must not be renewed.
+        // (refresh() above already verified the old token's signature, so reading its issue time is safe.)
+        $issuedAt = json_decode(base64_decode(strtr(explode('.', $oldToken)[1] ?? '', '-_', '+/')), true)['iat'] ?? null;
+        if ($user->password_changed_at && $issuedAt !== null && $issuedAt < $user->password_changed_at->getTimestamp()) {
+            $guard->invalidate();
+            return response()->json(['error' => 'Your password was changed, please log in again'], 401);
+        }
+
+        return $this->respondWithToken($newToken);
     }
 
     /**
@@ -224,7 +253,7 @@ class AuthController extends Controller
             return response()->json(['error' => 'Current password is incorrect'], 422);
         }
 
-        $user->update(['password' => Hash::make($request->new_password)]);
+        $user->forceFill(['password' => $request->new_password, 'password_changed_at' => now()])->save();
 
         return response()->json(['message' => 'Password updated successfully']);
     }

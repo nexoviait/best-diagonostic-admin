@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { DashboardShell } from "@/components/dashboard-shell";
+import { AppSettingsCard } from "@/components/app-settings-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -582,6 +583,8 @@ function AccInfoPage() {
               </Button>
             </div>
           </div>
+
+          <AppSettingsCard />
         </>
       )}
     </DashboardShell>

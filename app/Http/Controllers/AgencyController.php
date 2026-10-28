@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Agency;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
 class AgencyController extends Controller
@@ -35,6 +36,8 @@ class AgencyController extends Controller
             'address' => 'nullable|string',
             'status' => 'nullable|string',
             'is_one_time' => 'nullable|boolean',
+            'username' => 'nullable|string|max:50|unique:agencies,username',
+            'password' => 'nullable|string|min:6',
         ]);
 
         if ($validator->fails()) {
@@ -50,6 +53,8 @@ class AgencyController extends Controller
             'price' => $request->price ?? 0.00,
             'status' => $request->status ?? '1',
             'is_one_time' => $request->boolean('is_one_time'),
+            'username' => $request->username ?: null,
+            'password' => $request->filled('password') ? Hash::make($request->password) : null,
         ]);
 
         return response()->json([
@@ -83,13 +88,15 @@ class AgencyController extends Controller
             'address' => 'nullable|string',
             'status' => 'nullable|string',
             'is_one_time' => 'nullable|boolean',
+            'username' => 'nullable|string|max:50|unique:agencies,username,' . $id,
+            'password' => 'nullable|string|min:6',
         ]);
 
         if ($validator->fails()) {
             return response()->json($validator->errors(), 422);
         }
 
-        $agency->update([
+        $updates = [
             'name' => strtoupper($request->name),
             'contact_person' => $request->contact_person,
             'email' => $request->email,
@@ -98,7 +105,18 @@ class AgencyController extends Controller
             'price' => $request->price ?? $agency->price,
             'status' => $request->status ?? $agency->status,
             'is_one_time' => $request->has('is_one_time') ? $request->boolean('is_one_time') : $agency->is_one_time,
-        ]);
+        ];
+
+        // Portal login fields are only ever touched when actually sent — an empty-string
+        // username clears portal access, a blank password leaves the existing one as-is.
+        if ($request->has('username')) {
+            $updates['username'] = $request->username ?: null;
+        }
+        if ($request->filled('password')) {
+            $updates['password'] = Hash::make($request->password);
+        }
+
+        $agency->update($updates);
 
         return response()->json([
             'message' => 'Agency updated successfully',

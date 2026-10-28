@@ -83,13 +83,27 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   notFoundComponent: NotFoundComponent,
   errorComponent: ErrorComponent,
   beforeLoad: ({ location }) => {
+    // The Agency Portal has its own token (its own "agency_portal_token", see lib/agency-api.ts)
+    // separate from the staff "mediadmin_token" — but /login is the single entry point for both
+    // (see routes/login.tsx), so there is no dedicated agency login page to redirect to.
+    const agencyToken =
+      typeof window !== "undefined" ? localStorage.getItem("agency_portal_token") : null;
+    const agencyPortalPages = ["/agency-portal", "/agency-portal-entries", "/agency-portal-reports"];
+    if (agencyPortalPages.includes(location.pathname)) {
+      if (!agencyToken) {
+        throw redirect({ to: "/login", replace: true });
+      }
+      return;
+    }
+
     const token = typeof window !== "undefined" ? localStorage.getItem("mediadmin_token") : null;
     const isPublicPage = ["/login", "/medical", "/search-passport"].includes(location.pathname);
     if (!token && !isPublicPage) {
       throw redirect({ to: "/login", replace: true });
     }
-    if (token && location.pathname === "/login") {
-      throw redirect({ to: "/", replace: true });
+    if (location.pathname === "/login") {
+      if (token) throw redirect({ to: "/", replace: true });
+      if (agencyToken) throw redirect({ to: "/agency-portal", replace: true });
     }
   },
 });

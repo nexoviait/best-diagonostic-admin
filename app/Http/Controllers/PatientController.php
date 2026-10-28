@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AppSetting;
+use App\Models\CallbackRequest;
 use App\Models\Patient;
 use App\Models\MedicalReport;
 use App\Models\XrayReport;
@@ -45,6 +47,9 @@ class PatientController extends Controller
             'report_header_image_path' => $admin->report_header_image_path,
             'report_footer_image_path' => $admin->report_footer_image_path,
             'payment_edit_window_minutes' => $admin->payment_edit_window_minutes,
+            // Managed from Site Settings; shown on the mobile app's login screen.
+            'it_helpdesk_phone' => AppSetting::get('it_helpdesk_phone'),
+            'it_helpdesk_email' => AppSetting::get('it_helpdesk_email'),
         ]);
     }
 
@@ -92,9 +97,17 @@ class PatientController extends Controller
         }
 
         $sortDir = strtolower($request->query('sort_dir', 'asc'));
-        $patients = $query->orderBy('id', $sortDir === 'desc' ? 'desc' : 'asc')->get();
+        $query->orderBy('id', $sortDir === 'desc' ? 'desc' : 'asc');
 
-        return response()->json($patients);
+        // Optional pagination (used by the mobile app so it doesn't download every
+        // patient at once). Without per_page the response is the same full array as before.
+        if ($request->filled('per_page')) {
+            $perPage = (int) min(max((int) $request->per_page, 1), 100);
+
+            return response()->json($query->paginate($perPage));
+        }
+
+        return response()->json($query->get());
     }
 
     public function creators()
@@ -175,6 +188,7 @@ class PatientController extends Controller
             'total_countries' => $totalCountries,
             'total_agencies' => $totalAgencies,
             'total_mrs' => $totalMrs,
+            'pending_callbacks' => CallbackRequest::where('status', 'pending')->count(),
             'recent_patients' => $recentPatients
         ]);
     }

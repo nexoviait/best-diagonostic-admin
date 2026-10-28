@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { apiRequest, setToken, setUser } from "@/lib/api";
+import { agencyApiRequest, setAgencyToken, setAgency } from "@/lib/agency-api";
+import { ApiError } from "@/lib/errors";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,8 +47,29 @@ function LoginPage() {
 
       // Redirect to home/dashboard
       window.location.href = "/";
+      return;
     } catch (err: any) {
-      setError(err.message || "Invalid credentials. Please try again.");
+      // Only "those credentials don't match any staff account" falls through to an Agency
+      // Portal check below — a rate limit, an inactive account, a network error etc. is a
+      // real answer on its own and should surface as-is, not be swallowed by a second guess.
+      if (!(err instanceof ApiError) || err.code !== "invalid_credentials") {
+        setError(err.message || "Invalid credentials. Please try again.");
+        setLoading(false);
+        return;
+      }
+    }
+
+    try {
+      const agencyData = await agencyApiRequest("/agency/login", {
+        method: "POST",
+        body: JSON.stringify({ username: login, password }),
+      });
+
+      setAgencyToken(agencyData.access_token);
+      setAgency(agencyData.agency);
+      window.location.href = "/agency-portal";
+    } catch (agencyErr: any) {
+      setError(agencyErr.message || "Invalid username/email or password.");
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Agency;
 use App\Models\User;
 
 return [
@@ -46,6 +47,13 @@ return [
             'driver' => 'jwt',
             'provider' => 'users',
         ],
+
+        // Agency Portal: agencies log in with their own username/password (set by Admin from
+        // Agency List) to submit patient entries and see their own report status.
+        'agency' => [
+            'driver' => 'jwt',
+            'provider' => 'agencies',
+        ],
     ],
 
     /*
@@ -69,6 +77,11 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', User::class),
+        ],
+
+        'agencies' => [
+            'driver' => 'eloquent',
+            'model' => Agency::class,
         ],
 
         // 'users' => [

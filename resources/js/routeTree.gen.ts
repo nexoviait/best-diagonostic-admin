@@ -23,6 +23,9 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as EntryFormRouteImport } from './routes/entry-form'
 import { Route as DatabaseRouteImport } from './routes/database'
 import { Route as CountryListRouteImport } from './routes/country-list'
+import { Route as AgencyPortalReportsRouteImport } from './routes/agency-portal-reports'
+import { Route as AgencyPortalEntriesRouteImport } from './routes/agency-portal-entries'
+import { Route as AgencyPortalRouteImport } from './routes/agency-portal'
 import { Route as AgencyListRouteImport } from './routes/agency-list'
 import { Route as AgencyBalanceRouteImport } from './routes/agency-balance'
 import { Route as AdminReportRouteImport } from './routes/admin-report'
@@ -99,6 +102,21 @@ const CountryListRoute = CountryListRouteImport.update({
   path: '/country-list',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AgencyPortalReportsRoute = AgencyPortalReportsRouteImport.update({
+  id: '/agency-portal-reports',
+  path: '/agency-portal-reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgencyPortalEntriesRoute = AgencyPortalEntriesRouteImport.update({
+  id: '/agency-portal-entries',
+  path: '/agency-portal-entries',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgencyPortalRoute = AgencyPortalRouteImport.update({
+  id: '/agency-portal',
+  path: '/agency-portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AgencyListRoute = AgencyListRouteImport.update({
   id: '/agency-list',
   path: '/agency-list',
@@ -131,6 +149,9 @@ export interface FileRoutesByFullPath {
   '/admin-report': typeof AdminReportRoute
   '/agency-balance': typeof AgencyBalanceRoute
   '/agency-list': typeof AgencyListRoute
+  '/agency-portal': typeof AgencyPortalRoute
+  '/agency-portal-entries': typeof AgencyPortalEntriesRoute
+  '/agency-portal-reports': typeof AgencyPortalReportsRoute
   '/country-list': typeof CountryListRoute
   '/database': typeof DatabaseRoute
   '/entry-form': typeof EntryFormRoute
@@ -152,6 +173,9 @@ export interface FileRoutesByTo {
   '/admin-report': typeof AdminReportRoute
   '/agency-balance': typeof AgencyBalanceRoute
   '/agency-list': typeof AgencyListRoute
+  '/agency-portal': typeof AgencyPortalRoute
+  '/agency-portal-entries': typeof AgencyPortalEntriesRoute
+  '/agency-portal-reports': typeof AgencyPortalReportsRoute
   '/country-list': typeof CountryListRoute
   '/database': typeof DatabaseRoute
   '/entry-form': typeof EntryFormRoute
@@ -174,6 +198,9 @@ export interface FileRoutesById {
   '/admin-report': typeof AdminReportRoute
   '/agency-balance': typeof AgencyBalanceRoute
   '/agency-list': typeof AgencyListRoute
+  '/agency-portal': typeof AgencyPortalRoute
+  '/agency-portal-entries': typeof AgencyPortalEntriesRoute
+  '/agency-portal-reports': typeof AgencyPortalReportsRoute
   '/country-list': typeof CountryListRoute
   '/database': typeof DatabaseRoute
   '/entry-form': typeof EntryFormRoute
@@ -197,6 +224,9 @@ export interface FileRouteTypes {
     | '/admin-report'
     | '/agency-balance'
     | '/agency-list'
+    | '/agency-portal'
+    | '/agency-portal-entries'
+    | '/agency-portal-reports'
     | '/country-list'
     | '/database'
     | '/entry-form'
@@ -218,6 +248,9 @@ export interface FileRouteTypes {
     | '/admin-report'
     | '/agency-balance'
     | '/agency-list'
+    | '/agency-portal'
+    | '/agency-portal-entries'
+    | '/agency-portal-reports'
     | '/country-list'
     | '/database'
     | '/entry-form'
@@ -239,6 +272,9 @@ export interface FileRouteTypes {
     | '/admin-report'
     | '/agency-balance'
     | '/agency-list'
+    | '/agency-portal'
+    | '/agency-portal-entries'
+    | '/agency-portal-reports'
     | '/country-list'
     | '/database'
     | '/entry-form'
@@ -261,6 +297,9 @@ export interface RootRouteChildren {
   AdminReportRoute: typeof AdminReportRoute
   AgencyBalanceRoute: typeof AgencyBalanceRoute
   AgencyListRoute: typeof AgencyListRoute
+  AgencyPortalRoute: typeof AgencyPortalRoute
+  AgencyPortalEntriesRoute: typeof AgencyPortalEntriesRoute
+  AgencyPortalReportsRoute: typeof AgencyPortalReportsRoute
   CountryListRoute: typeof CountryListRoute
   DatabaseRoute: typeof DatabaseRoute
   EntryFormRoute: typeof EntryFormRoute
@@ -377,6 +416,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CountryListRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/agency-portal-reports': {
+      id: '/agency-portal-reports'
+      path: '/agency-portal-reports'
+      fullPath: '/agency-portal-reports'
+      preLoaderRoute: typeof AgencyPortalReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agency-portal-entries': {
+      id: '/agency-portal-entries'
+      path: '/agency-portal-entries'
+      fullPath: '/agency-portal-entries'
+      preLoaderRoute: typeof AgencyPortalEntriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agency-portal': {
+      id: '/agency-portal'
+      path: '/agency-portal'
+      fullPath: '/agency-portal'
+      preLoaderRoute: typeof AgencyPortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/agency-list': {
       id: '/agency-list'
       path: '/agency-list'
@@ -421,6 +481,9 @@ const rootRouteChildren: RootRouteChildren = {
   AdminReportRoute: AdminReportRoute,
   AgencyBalanceRoute: AgencyBalanceRoute,
   AgencyListRoute: AgencyListRoute,
+  AgencyPortalRoute: AgencyPortalRoute,
+  AgencyPortalEntriesRoute: AgencyPortalEntriesRoute,
+  AgencyPortalReportsRoute: AgencyPortalReportsRoute,
   CountryListRoute: CountryListRoute,
   DatabaseRoute: DatabaseRoute,
   EntryFormRoute: EntryFormRoute,

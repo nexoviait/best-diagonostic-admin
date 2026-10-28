@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Pencil, Trash2, Save, RefreshCw, Loader2 } from "lucide-react";
+import { Pencil, Trash2, Save, RefreshCw, Loader2, KeyRound } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
@@ -25,6 +25,8 @@ function AgencyListPage() {
   const [address, setAddress] = useState("");
   const [status, setStatus] = useState("1");
   const [isOneTime, setIsOneTime] = useState(false);
+  const [portalUsername, setPortalUsername] = useState("");
+  const [portalPassword, setPortalPassword] = useState("");
   const [filterQuery, setFilterQuery] = useState("");
 
   // Pagination State
@@ -59,19 +61,15 @@ function AgencyListPage() {
     mutationFn: async () => {
       return apiRequest("/agencies", {
         method: "POST",
-        body: JSON.stringify({ name, price, contact_person: contactPerson, email, mobile_no: mobileNo, address, status, is_one_time: isOneTime }),
+        body: JSON.stringify({
+          name, price, contact_person: contactPerson, email, mobile_no: mobileNo, address, status, is_one_time: isOneTime,
+          username: portalUsername, password: portalPassword,
+        }),
       });
     },
     onSuccess: () => {
       toast.success("Agency added successfully!");
-      setName("");
-      setContactPerson("");
-      setEmail("");
-      setMobileNo("");
-      setAddress("");
-      setPrice(0);
-      setStatus("1");
-      setIsOneTime(false);
+      handleClear();
       queryClient.invalidateQueries({ queryKey: ["agencies"] });
     },
     onError: (err: any) => {
@@ -85,20 +83,15 @@ function AgencyListPage() {
       if (!selectedId) return;
       return apiRequest(`/agencies/${selectedId}`, {
         method: "PUT",
-        body: JSON.stringify({ name, price, contact_person: contactPerson, email, mobile_no: mobileNo, address, status, is_one_time: isOneTime }),
+        body: JSON.stringify({
+          name, price, contact_person: contactPerson, email, mobile_no: mobileNo, address, status, is_one_time: isOneTime,
+          username: portalUsername, password: portalPassword,
+        }),
       });
     },
     onSuccess: () => {
       toast.success("Agency updated successfully!");
-      setName("");
-      setContactPerson("");
-      setEmail("");
-      setMobileNo("");
-      setAddress("");
-      setPrice(0);
-      setStatus("1");
-      setIsOneTime(false);
-      setSelectedId(null);
+      handleClear();
       queryClient.invalidateQueries({ queryKey: ["agencies"] });
     },
     onError: (err: any) => {
@@ -138,6 +131,8 @@ function AgencyListPage() {
     setPrice(Number(agency.price) || 0);
     setStatus(agency.status || "1");
     setIsOneTime(!!agency.is_one_time);
+    setPortalUsername(agency.username || "");
+    setPortalPassword("");
   };
 
   const handleClear = () => {
@@ -150,6 +145,8 @@ function AgencyListPage() {
     setPrice(0);
     setStatus("1");
     setIsOneTime(false);
+    setPortalUsername("");
+    setPortalPassword("");
   };
 
   const filteredAgencies = agencies.filter((a) =>
@@ -256,6 +253,35 @@ function AgencyListPage() {
               </Label>
             </div>
           </div>
+
+          <div className="dark-fields-panel space-y-3 rounded-xl border border-black/20 bg-[#5c5c5c] p-4">
+            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-white/80">
+              <KeyRound className="h-3.5 w-3.5" /> Agency Portal Access
+            </div>
+            <p className="text-xs text-white/60">
+              Lets this agency sign in from the same Login page (/login) with this username and
+              password, to submit entries and see their own report status. Leave blank to keep
+              portal access disabled (or unchanged).
+            </p>
+            <div>
+              <Label>Portal Username</Label>
+              <Input
+                placeholder="e.g. vip-overseas"
+                value={portalUsername}
+                onChange={(e) => setPortalUsername(e.target.value)}
+                autoCapitalize="none"
+              />
+            </div>
+            <div>
+              <Label>Portal Password</Label>
+              <Input
+                type="text"
+                placeholder={selectedId ? "Leave blank to keep current password" : "Set a password"}
+                value={portalPassword}
+                onChange={(e) => setPortalPassword(e.target.value)}
+              />
+            </div>
+          </div>
           <div className="pt-2 flex gap-2">
             {!selectedId ? (
               <Button
@@ -311,6 +337,7 @@ function AgencyListPage() {
                     <th className="px-5 py-3 font-medium">Mobile No</th>
                     <th className="px-5 py-3 font-medium">Email</th>
                     <th className="px-5 py-3 text-right font-medium">Agency Net (৳)</th>
+                    <th className="px-5 py-3 font-medium">Portal</th>
                     <th className="px-5 py-3 font-medium">Status</th>
                     <th className="px-5 py-3 text-right font-medium">Action</th>
                   </tr>
@@ -318,7 +345,7 @@ function AgencyListPage() {
                 <tbody>
                   {isLoading ? (
                     <tr>
-                      <td colSpan={8} className="px-5 py-6 text-center text-muted-foreground">
+                      <td colSpan={9} className="px-5 py-6 text-center text-muted-foreground">
                         <div className="flex items-center justify-center gap-2">
                           <Loader2 className="h-4 w-4 animate-spin text-primary" />
                           Loading list...
@@ -327,7 +354,7 @@ function AgencyListPage() {
                     </tr>
                   ) : paginatedAgencies.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-5 py-6 text-center text-muted-foreground">
+                      <td colSpan={9} className="px-5 py-6 text-center text-muted-foreground">
                         No agencies found.
                       </td>
                     </tr>
@@ -349,6 +376,17 @@ function AgencyListPage() {
                           <td className="px-5 py-3 text-slate-600 font-mono text-xs">{a.mobile_no || "N/A"}</td>
                           <td className="px-5 py-3 text-slate-600 text-xs">{a.email || "N/A"}</td>
                           <td className="px-5 py-3 text-right font-mono font-semibold text-slate-700">{(Number(a.price) || 0).toLocaleString()}</td>
+                          <td className="px-5 py-3">
+                            {a.username ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-semibold border bg-primary/10 text-primary border-primary/30">
+                                ENABLED
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-semibold border bg-slate-50 text-slate-500 border-slate-200">
+                                OFF
+                              </span>
+                            )}
+                          </td>
                           <td className="px-5 py-3">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
                               a.status === "1"
