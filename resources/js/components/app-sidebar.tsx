@@ -17,6 +17,15 @@ import {
   Search,
   ShieldCheck,
   BarChart3,
+  Receipt,
+  TrendingUp,
+  FolderKanban,
+  Tags,
+  Truck,
+  IdCard,
+  Landmark,
+  Briefcase,
+  Banknote,
 } from "lucide-react";
 import {
   Sidebar,
@@ -51,6 +60,21 @@ const management = [
   { title: "Agency List", url: "/agency-list", icon: Building2 },
   { title: "Country List", url: "/country-list", icon: Globe2 },
   { title: "Agency Balance", url: "/agency-balance", icon: Wallet },
+];
+
+const finance = [
+  { title: "Expenses", url: "/expenses", icon: Receipt },
+  { title: "Revenue", url: "/revenue", icon: TrendingUp },
+  { title: "Projects", url: "/projects", icon: FolderKanban },
+  { title: "Vendors", url: "/vendors", icon: Truck },
+  { title: "Finance Categories", url: "/finance-categories", icon: Tags },
+];
+
+const hr = [
+  { title: "Employee List", url: "/employees", icon: IdCard },
+  { title: "Payroll", url: "/payroll", icon: Banknote },
+  { title: "Departments", url: "/departments", icon: Landmark },
+  { title: "Designations", url: "/designations", icon: Briefcase },
 ];
 
 const account = [
@@ -119,6 +143,15 @@ export function AppSidebar() {
       if (item.url === '/acc-info') return perms.includes('manage_settings');
       if (item.url === '/admin-report') return perms.includes('view_reports');
       if (item.url === '/password') return true; // Everyone can change their password
+      if (item.url === '/expenses') return perms.includes('view_finance');
+      if (item.url === '/revenue') return perms.includes('view_finance');
+      if (item.url === '/projects') return perms.includes('view_finance');
+      if (item.url === '/vendors') return perms.includes('view_finance');
+      if (item.url === '/finance-categories') return perms.includes('view_finance');
+      if (item.url === '/employees') return perms.includes('view_employees');
+      if (item.url === '/departments') return perms.includes('view_employees');
+      if (item.url === '/designations') return perms.includes('view_employees');
+      if (item.url === '/payroll') return perms.includes('view_payroll');
 
       return false; // Hide by default if not matched
     });
@@ -165,6 +198,8 @@ export function AppSidebar() {
       <SidebarContent>
         {renderGroup("Operations", primary)}
         {renderGroup("Management", management)}
+        {renderGroup("Finance", finance)}
+        {renderGroup("HR & Payroll", hr)}
         {renderGroup("Account", account)}
       </SidebarContent>
       <SidebarFooter>

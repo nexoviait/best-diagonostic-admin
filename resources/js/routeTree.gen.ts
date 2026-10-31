@@ -10,17 +10,26 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as XrayRouteImport } from './routes/xray'
+import { Route as VendorsRouteImport } from './routes/vendors'
 import { Route as UsersRouteImport } from './routes/users'
 import { Route as SearchPassportRouteImport } from './routes/search-passport'
 import { Route as RolesRouteImport } from './routes/roles'
+import { Route as RevenueRouteImport } from './routes/revenue'
 import { Route as ReportEntryRouteImport } from './routes/report-entry'
+import { Route as ProjectsRouteImport } from './routes/projects'
+import { Route as PayrollRouteImport } from './routes/payroll'
 import { Route as PasswordRouteImport } from './routes/password'
 import { Route as MyEntriesRouteImport } from './routes/my-entries'
 import { Route as MrListRouteImport } from './routes/mr-list'
 import { Route as MedicalRouteImport } from './routes/medical'
 import { Route as MalaysiaReportRouteImport } from './routes/malaysia-report'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as FinanceCategoriesRouteImport } from './routes/finance-categories'
+import { Route as ExpensesRouteImport } from './routes/expenses'
 import { Route as EntryFormRouteImport } from './routes/entry-form'
+import { Route as EmployeesRouteImport } from './routes/employees'
+import { Route as DesignationsRouteImport } from './routes/designations'
+import { Route as DepartmentsRouteImport } from './routes/departments'
 import { Route as DatabaseRouteImport } from './routes/database'
 import { Route as CountryListRouteImport } from './routes/country-list'
 import { Route as AgencyPortalReportsRouteImport } from './routes/agency-portal-reports'
@@ -35,6 +44,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const XrayRoute = XrayRouteImport.update({
   id: '/xray',
   path: '/xray',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VendorsRoute = VendorsRouteImport.update({
+  id: '/vendors',
+  path: '/vendors',
   getParentRoute: () => rootRouteImport,
 } as any)
 const UsersRoute = UsersRouteImport.update({
@@ -52,9 +66,24 @@ const RolesRoute = RolesRouteImport.update({
   path: '/roles',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RevenueRoute = RevenueRouteImport.update({
+  id: '/revenue',
+  path: '/revenue',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReportEntryRoute = ReportEntryRouteImport.update({
   id: '/report-entry',
   path: '/report-entry',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsRoute = ProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PayrollRoute = PayrollRouteImport.update({
+  id: '/payroll',
+  path: '/payroll',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PasswordRoute = PasswordRouteImport.update({
@@ -87,9 +116,34 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FinanceCategoriesRoute = FinanceCategoriesRouteImport.update({
+  id: '/finance-categories',
+  path: '/finance-categories',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExpensesRoute = ExpensesRouteImport.update({
+  id: '/expenses',
+  path: '/expenses',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EntryFormRoute = EntryFormRouteImport.update({
   id: '/entry-form',
   path: '/entry-form',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EmployeesRoute = EmployeesRouteImport.update({
+  id: '/employees',
+  path: '/employees',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DesignationsRoute = DesignationsRouteImport.update({
+  id: '/designations',
+  path: '/designations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DepartmentsRoute = DepartmentsRouteImport.update({
+  id: '/departments',
+  path: '/departments',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DatabaseRoute = DatabaseRouteImport.update({
@@ -154,17 +208,26 @@ export interface FileRoutesByFullPath {
   '/agency-portal-reports': typeof AgencyPortalReportsRoute
   '/country-list': typeof CountryListRoute
   '/database': typeof DatabaseRoute
+  '/departments': typeof DepartmentsRoute
+  '/designations': typeof DesignationsRoute
+  '/employees': typeof EmployeesRoute
   '/entry-form': typeof EntryFormRoute
+  '/expenses': typeof ExpensesRoute
+  '/finance-categories': typeof FinanceCategoriesRoute
   '/login': typeof LoginRoute
   '/malaysia-report': typeof MalaysiaReportRoute
   '/medical': typeof MedicalRoute
   '/mr-list': typeof MrListRoute
   '/my-entries': typeof MyEntriesRoute
   '/password': typeof PasswordRoute
+  '/payroll': typeof PayrollRoute
+  '/projects': typeof ProjectsRoute
   '/report-entry': typeof ReportEntryRoute
+  '/revenue': typeof RevenueRoute
   '/roles': typeof RolesRoute
   '/search-passport': typeof SearchPassportRoute
   '/users': typeof UsersRoute
+  '/vendors': typeof VendorsRoute
   '/xray': typeof XrayRoute
 }
 export interface FileRoutesByTo {
@@ -178,17 +241,26 @@ export interface FileRoutesByTo {
   '/agency-portal-reports': typeof AgencyPortalReportsRoute
   '/country-list': typeof CountryListRoute
   '/database': typeof DatabaseRoute
+  '/departments': typeof DepartmentsRoute
+  '/designations': typeof DesignationsRoute
+  '/employees': typeof EmployeesRoute
   '/entry-form': typeof EntryFormRoute
+  '/expenses': typeof ExpensesRoute
+  '/finance-categories': typeof FinanceCategoriesRoute
   '/login': typeof LoginRoute
   '/malaysia-report': typeof MalaysiaReportRoute
   '/medical': typeof MedicalRoute
   '/mr-list': typeof MrListRoute
   '/my-entries': typeof MyEntriesRoute
   '/password': typeof PasswordRoute
+  '/payroll': typeof PayrollRoute
+  '/projects': typeof ProjectsRoute
   '/report-entry': typeof ReportEntryRoute
+  '/revenue': typeof RevenueRoute
   '/roles': typeof RolesRoute
   '/search-passport': typeof SearchPassportRoute
   '/users': typeof UsersRoute
+  '/vendors': typeof VendorsRoute
   '/xray': typeof XrayRoute
 }
 export interface FileRoutesById {
@@ -203,17 +275,26 @@ export interface FileRoutesById {
   '/agency-portal-reports': typeof AgencyPortalReportsRoute
   '/country-list': typeof CountryListRoute
   '/database': typeof DatabaseRoute
+  '/departments': typeof DepartmentsRoute
+  '/designations': typeof DesignationsRoute
+  '/employees': typeof EmployeesRoute
   '/entry-form': typeof EntryFormRoute
+  '/expenses': typeof ExpensesRoute
+  '/finance-categories': typeof FinanceCategoriesRoute
   '/login': typeof LoginRoute
   '/malaysia-report': typeof MalaysiaReportRoute
   '/medical': typeof MedicalRoute
   '/mr-list': typeof MrListRoute
   '/my-entries': typeof MyEntriesRoute
   '/password': typeof PasswordRoute
+  '/payroll': typeof PayrollRoute
+  '/projects': typeof ProjectsRoute
   '/report-entry': typeof ReportEntryRoute
+  '/revenue': typeof RevenueRoute
   '/roles': typeof RolesRoute
   '/search-passport': typeof SearchPassportRoute
   '/users': typeof UsersRoute
+  '/vendors': typeof VendorsRoute
   '/xray': typeof XrayRoute
 }
 export interface FileRouteTypes {
@@ -229,17 +310,26 @@ export interface FileRouteTypes {
     | '/agency-portal-reports'
     | '/country-list'
     | '/database'
+    | '/departments'
+    | '/designations'
+    | '/employees'
     | '/entry-form'
+    | '/expenses'
+    | '/finance-categories'
     | '/login'
     | '/malaysia-report'
     | '/medical'
     | '/mr-list'
     | '/my-entries'
     | '/password'
+    | '/payroll'
+    | '/projects'
     | '/report-entry'
+    | '/revenue'
     | '/roles'
     | '/search-passport'
     | '/users'
+    | '/vendors'
     | '/xray'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -253,17 +343,26 @@ export interface FileRouteTypes {
     | '/agency-portal-reports'
     | '/country-list'
     | '/database'
+    | '/departments'
+    | '/designations'
+    | '/employees'
     | '/entry-form'
+    | '/expenses'
+    | '/finance-categories'
     | '/login'
     | '/malaysia-report'
     | '/medical'
     | '/mr-list'
     | '/my-entries'
     | '/password'
+    | '/payroll'
+    | '/projects'
     | '/report-entry'
+    | '/revenue'
     | '/roles'
     | '/search-passport'
     | '/users'
+    | '/vendors'
     | '/xray'
   id:
     | '__root__'
@@ -277,17 +376,26 @@ export interface FileRouteTypes {
     | '/agency-portal-reports'
     | '/country-list'
     | '/database'
+    | '/departments'
+    | '/designations'
+    | '/employees'
     | '/entry-form'
+    | '/expenses'
+    | '/finance-categories'
     | '/login'
     | '/malaysia-report'
     | '/medical'
     | '/mr-list'
     | '/my-entries'
     | '/password'
+    | '/payroll'
+    | '/projects'
     | '/report-entry'
+    | '/revenue'
     | '/roles'
     | '/search-passport'
     | '/users'
+    | '/vendors'
     | '/xray'
   fileRoutesById: FileRoutesById
 }
@@ -302,17 +410,26 @@ export interface RootRouteChildren {
   AgencyPortalReportsRoute: typeof AgencyPortalReportsRoute
   CountryListRoute: typeof CountryListRoute
   DatabaseRoute: typeof DatabaseRoute
+  DepartmentsRoute: typeof DepartmentsRoute
+  DesignationsRoute: typeof DesignationsRoute
+  EmployeesRoute: typeof EmployeesRoute
   EntryFormRoute: typeof EntryFormRoute
+  ExpensesRoute: typeof ExpensesRoute
+  FinanceCategoriesRoute: typeof FinanceCategoriesRoute
   LoginRoute: typeof LoginRoute
   MalaysiaReportRoute: typeof MalaysiaReportRoute
   MedicalRoute: typeof MedicalRoute
   MrListRoute: typeof MrListRoute
   MyEntriesRoute: typeof MyEntriesRoute
   PasswordRoute: typeof PasswordRoute
+  PayrollRoute: typeof PayrollRoute
+  ProjectsRoute: typeof ProjectsRoute
   ReportEntryRoute: typeof ReportEntryRoute
+  RevenueRoute: typeof RevenueRoute
   RolesRoute: typeof RolesRoute
   SearchPassportRoute: typeof SearchPassportRoute
   UsersRoute: typeof UsersRoute
+  VendorsRoute: typeof VendorsRoute
   XrayRoute: typeof XrayRoute
 }
 
@@ -323,6 +440,13 @@ declare module '@tanstack/react-router' {
       path: '/xray'
       fullPath: '/xray'
       preLoaderRoute: typeof XrayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vendors': {
+      id: '/vendors'
+      path: '/vendors'
+      fullPath: '/vendors'
+      preLoaderRoute: typeof VendorsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/users': {
@@ -346,11 +470,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RolesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/revenue': {
+      id: '/revenue'
+      path: '/revenue'
+      fullPath: '/revenue'
+      preLoaderRoute: typeof RevenueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/report-entry': {
       id: '/report-entry'
       path: '/report-entry'
       fullPath: '/report-entry'
       preLoaderRoute: typeof ReportEntryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects': {
+      id: '/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof ProjectsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/payroll': {
+      id: '/payroll'
+      path: '/payroll'
+      fullPath: '/payroll'
+      preLoaderRoute: typeof PayrollRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/password': {
@@ -395,11 +540,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/finance-categories': {
+      id: '/finance-categories'
+      path: '/finance-categories'
+      fullPath: '/finance-categories'
+      preLoaderRoute: typeof FinanceCategoriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/expenses': {
+      id: '/expenses'
+      path: '/expenses'
+      fullPath: '/expenses'
+      preLoaderRoute: typeof ExpensesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/entry-form': {
       id: '/entry-form'
       path: '/entry-form'
       fullPath: '/entry-form'
       preLoaderRoute: typeof EntryFormRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/employees': {
+      id: '/employees'
+      path: '/employees'
+      fullPath: '/employees'
+      preLoaderRoute: typeof EmployeesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/designations': {
+      id: '/designations'
+      path: '/designations'
+      fullPath: '/designations'
+      preLoaderRoute: typeof DesignationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/departments': {
+      id: '/departments'
+      path: '/departments'
+      fullPath: '/departments'
+      preLoaderRoute: typeof DepartmentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/database': {
@@ -486,17 +666,26 @@ const rootRouteChildren: RootRouteChildren = {
   AgencyPortalReportsRoute: AgencyPortalReportsRoute,
   CountryListRoute: CountryListRoute,
   DatabaseRoute: DatabaseRoute,
+  DepartmentsRoute: DepartmentsRoute,
+  DesignationsRoute: DesignationsRoute,
+  EmployeesRoute: EmployeesRoute,
   EntryFormRoute: EntryFormRoute,
+  ExpensesRoute: ExpensesRoute,
+  FinanceCategoriesRoute: FinanceCategoriesRoute,
   LoginRoute: LoginRoute,
   MalaysiaReportRoute: MalaysiaReportRoute,
   MedicalRoute: MedicalRoute,
   MrListRoute: MrListRoute,
   MyEntriesRoute: MyEntriesRoute,
   PasswordRoute: PasswordRoute,
+  PayrollRoute: PayrollRoute,
+  ProjectsRoute: ProjectsRoute,
   ReportEntryRoute: ReportEntryRoute,
+  RevenueRoute: RevenueRoute,
   RolesRoute: RolesRoute,
   SearchPassportRoute: SearchPassportRoute,
   UsersRoute: UsersRoute,
+  VendorsRoute: VendorsRoute,
   XrayRoute: XrayRoute,
 }
 export const routeTree = rootRouteImport

@@ -15,6 +15,15 @@ use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\PublicCertificateController;
 use App\Http\Controllers\AgencyAuthController;
 use App\Http\Controllers\AgencyPortalController;
+use App\Http\Controllers\FinanceCategoryController;
+use App\Http\Controllers\VendorController;
+use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\RevenueController;
+use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\DesignationController;
+use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\PayrollController;
 
 /*
 |--------------------------------------------------------------------------
@@ -106,6 +115,77 @@ Route::middleware('auth:api')->group(function () {
 
     // Agency Invoices & Balance
     Route::apiResource('invoices', InvoiceController::class)->only(['index', 'store']);
+
+    // ─── Finance: Expense & Revenue tracking (gated — see EnsurePermission) ──
+    Route::middleware('permission:view_finance')->group(function () {
+        Route::get('finance-categories', [FinanceCategoryController::class, 'index']);
+        Route::get('vendors', [VendorController::class, 'index']);
+        Route::get('projects', [ProjectController::class, 'index']);
+        Route::get('projects/{id}', [ProjectController::class, 'show']);
+        Route::get('expenses', [ExpenseController::class, 'index']);
+        Route::get('expenses/{id}', [ExpenseController::class, 'show']);
+        Route::get('revenues', [RevenueController::class, 'index']);
+        Route::get('revenues/{id}', [RevenueController::class, 'show']);
+    });
+
+    Route::middleware('permission:manage_finance')->group(function () {
+        Route::post('finance-categories', [FinanceCategoryController::class, 'store']);
+        Route::put('finance-categories/{id}', [FinanceCategoryController::class, 'update']);
+        Route::delete('finance-categories/{id}', [FinanceCategoryController::class, 'destroy']);
+
+        Route::post('vendors', [VendorController::class, 'store']);
+        Route::put('vendors/{id}', [VendorController::class, 'update']);
+        Route::delete('vendors/{id}', [VendorController::class, 'destroy']);
+
+        Route::post('projects', [ProjectController::class, 'store']);
+        Route::put('projects/{id}', [ProjectController::class, 'update']);
+        Route::delete('projects/{id}', [ProjectController::class, 'destroy']);
+
+        Route::post('expenses', [ExpenseController::class, 'store']);
+        // POST + _method=PUT: a receipt replace needs multipart, same pattern as patients/agency updates.
+        Route::put('expenses/{id}', [ExpenseController::class, 'update']);
+        Route::delete('expenses/{id}', [ExpenseController::class, 'destroy']);
+
+        Route::post('revenues', [RevenueController::class, 'store']);
+        Route::put('revenues/{id}', [RevenueController::class, 'update']);
+        Route::delete('revenues/{id}', [RevenueController::class, 'destroy']);
+    });
+
+    // ─── HR: Employee directory (gated — see EnsurePermission) ───────────────
+    Route::middleware('permission:view_employees')->group(function () {
+        Route::get('departments', [DepartmentController::class, 'index']);
+        Route::get('designations', [DesignationController::class, 'index']);
+        Route::get('employees', [EmployeeController::class, 'index']);
+        Route::get('employees/{id}', [EmployeeController::class, 'show']);
+    });
+
+    Route::middleware('permission:manage_employees')->group(function () {
+        Route::post('departments', [DepartmentController::class, 'store']);
+        Route::put('departments/{id}', [DepartmentController::class, 'update']);
+        Route::delete('departments/{id}', [DepartmentController::class, 'destroy']);
+
+        Route::post('designations', [DesignationController::class, 'store']);
+        Route::put('designations/{id}', [DesignationController::class, 'update']);
+        Route::delete('designations/{id}', [DesignationController::class, 'destroy']);
+
+        Route::post('employees', [EmployeeController::class, 'store']);
+        // POST + _method=PUT: a photo replace needs multipart, same pattern as other updates.
+        Route::put('employees/{id}', [EmployeeController::class, 'update']);
+        Route::delete('employees/{id}', [EmployeeController::class, 'destroy']);
+    });
+
+    // ─── Payroll Management (separate from Employee directory — salary data) ─
+    Route::middleware('permission:view_payroll')->group(function () {
+        Route::get('payrolls', [PayrollController::class, 'index']);
+        Route::get('payrolls/{id}', [PayrollController::class, 'show']);
+    });
+
+    Route::middleware('permission:manage_payroll')->group(function () {
+        Route::post('payrolls/generate', [PayrollController::class, 'generate']);
+        Route::post('payrolls', [PayrollController::class, 'store']);
+        Route::put('payrolls/{id}', [PayrollController::class, 'update']);
+        Route::delete('payrolls/{id}', [PayrollController::class, 'destroy']);
+    });
 
     // ─── Admin-only Routes (require Admin role) ──────────────────────────────
     Route::middleware('admin')->group(function () {

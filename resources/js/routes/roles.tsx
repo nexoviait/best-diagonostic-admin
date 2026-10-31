@@ -76,6 +76,27 @@ const PERMISSION_GROUPS = [
       { id: "manage_users", label: "Manage Users" },
       { id: "manage_roles", label: "Manage Roles" },
     ]
+  },
+  {
+    category: "Finance (Expense & Revenue)",
+    permissions: [
+      { id: "view_finance", label: "View Expenses, Revenue, Projects, Vendors & Categories" },
+      { id: "manage_finance", label: "Add/Edit/Delete Expenses, Revenue, Projects, Vendors & Categories" },
+    ]
+  },
+  {
+    category: "HR (Employees)",
+    permissions: [
+      { id: "view_employees", label: "View Employee List, Departments & Designations" },
+      { id: "manage_employees", label: "Add/Edit/Delete Employees, Departments & Designations" },
+    ]
+  },
+  {
+    category: "Payroll",
+    permissions: [
+      { id: "view_payroll", label: "View Payroll Records" },
+      { id: "manage_payroll", label: "Generate, Edit & Delete Payroll Records" },
+    ]
   }
 ];
 
